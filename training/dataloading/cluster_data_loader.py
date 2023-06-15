@@ -51,6 +51,14 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
                 listofsixes.append(idx)
             elif value==7:
                 listofsevens.append(idx)
+        random.shuffle(listofzeros)
+        random.shuffle(listofones)
+        random.shuffle(listoftwos)
+        random.shuffle(listofthrees)
+        random.shuffle(listoffours)
+        random.shuffle(listoffives)
+        random.shuffle(listofsixes)
+        random.shuffle(listofsevens)
         actualarray=[]
         actualarray.append(listofzeros)
         actualarray.append(listofones)
