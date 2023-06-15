@@ -74,6 +74,10 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         # if self.infinite, this is easy
         #if self.infinite:
         #    return np.random.choice(self.indices, self.batch_size, replace=True, p=self.sampling_probabilities)
+        
+        #Get our array from above
+        arraytot=list(actualarray)
+        numarray=len(arraytot)
 
         if self.last_reached:
             self.reset()
@@ -84,14 +88,25 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
 
         indices = []
 
-        for b in range(self.batch_size):
-            if self.current_position < len(self.indices):
-                indices.append(self.indices[self.current_position])
+        for b in range(0, self.batch_size, numarray):
+            for num, array in enumerate(arraytot)
+                if self.current_position < len(self.indices):
+                
+                    counter=counters[num]
+                    if counter==0:
+                        numselect=counter
+                        random.shuffle(array)
+                        arraytot[num]=array
+                    else:
+                        numselect=(counter % len(array))
+                    counters[num]=counter+1
+                    numberchosen=array[numselect]   
+                    indices.append(numberchosen)
 
-                self.current_position += 1
-            else:
-                self.last_reached = True
-                break
+                    self.current_position += 1
+                else:
+                    self.last_reached = True
+                    break
 
         if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
             self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
