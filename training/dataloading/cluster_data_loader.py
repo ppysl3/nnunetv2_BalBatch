@@ -25,10 +25,47 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
 
         self.last_reached = False
 
+        clusters=np.load(r"C:\Users\ppysl3\OneDrive - The University of Nottingham\Postgraduate\Year 1\nnUNETAlterationTests\TCL200-8preds.npy")
+        listofzeros=[]
+        listofones=[]
+        listoftwos=[]
+        listofthrees=[]
+        listoffours=[]
+        listoffives=[]
+        listofsixes=[]
+        listofsevens=[]
+        for idx, value in enumerate(clusters):
+            if value==0:
+                listofzeros.append(idx)
+            elif value==1:
+                listofones.append(idx)
+            if value==2:
+                listoftwos.append(idx)
+            elif value==3:
+                listofthrees.append(idx)
+            if value==4:
+                listoffours.append(idx)
+            elif value==5:
+                listoffives.append(idx)
+            elif value==6:
+                listofsixes.append(idx)
+            elif value==7:
+                listofsevens.append(idx)
+        actualarray=[]
+        actualarray.append(listofzeros)
+        actualarray.append(listofones)
+        actualarray.append(listoftwos)
+        actualarray.append(listofthrees)
+        actualarray.append(listoffours)
+        actualarray.append(listoffives)
+        actualarray.append(listofsixes)
+        actualarray.append(listofsevens)
+        counters=np.zeros(8, dtype=int)
+        counters=list(counters)
     def get_indices(self):
         # if self.infinite, this is easy
-        if self.infinite:
-            return np.random.choice(self.indices, self.batch_size, replace=True, p=self.sampling_probabilities)
+        #if self.infinite:
+        #    return np.random.choice(self.indices, self.batch_size, replace=True, p=self.sampling_probabilities)
 
         if self.last_reached:
             self.reset()
