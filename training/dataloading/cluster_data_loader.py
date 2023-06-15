@@ -20,8 +20,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         self.was_initialized = True
 
         # no need to shuffle if we are returning infinite random samples
-        if not self.infinite and self.shuffle:
-            self.rs.shuffle(self.indices)
+        #if not self.infinite and self.shuffle:
+        #    self.rs.shuffle(self.indices)
 
         self.last_reached = False
 
