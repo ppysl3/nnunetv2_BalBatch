@@ -14,7 +14,7 @@ We should enforce that N must be divisible by batch size
 class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         def reset(self):
         assert self.indices is not None
-
+        print(self.indices)
         self.current_position = self.thread_id * self.batch_size
 
         self.was_initialized = True
