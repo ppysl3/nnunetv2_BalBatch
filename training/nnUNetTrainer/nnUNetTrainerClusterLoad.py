@@ -1,8 +1,10 @@
 from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 import numpy as np
-from nnunetv2.training.nnUNetTrainer.variant.data_augmentation import nnUNetTrainerNoDA
-from nnunetv2.training.dataloading import nnUNetClusterDataLoader2D
+from nnunetv2.training.nnUNetTrainer.variants.data_augmentation import nnUNetTrainerNoDA
+from nnunetv2.training.dataloading.cluster_data_loader import nnUNetClusterDataLoader2D
 import sys
+print("Loaded")
+sys.exit
 class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...], dim: int):
         
