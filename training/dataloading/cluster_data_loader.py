@@ -27,7 +27,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
 
         #clusters=np.load(r"C:\Users\ppysl3\OneDrive - The University of Nottingham\Postgraduate\Year 1\nnUNETAlterationTests\TCL200-8preds.npy")
         clusters=np.load(r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-8preds.npy")
-        print(clusters)
+        #print(clusters)
         listofzeros=[]
         listofones=[]
         listoftwos=[]
@@ -98,7 +98,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         #Get our array from above
         #arraytot=list(self.actualarray)
         numarray=len(arraytot)
-        print(arraytot)
+        #print(arraytot)
         indices = []
 
         for b in range(0, self.batch_size, numarray):

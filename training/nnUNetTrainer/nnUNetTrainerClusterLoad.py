@@ -16,18 +16,21 @@ class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
         #We only want to modify the training loader
         if dim == 2:
+            print("ONE!!!!!!!!!!!!!!!!!!")
             dl_tr = nnUNetClusterDataLoader2D(dataset_tr, self.batch_size,
                                        initial_patch_size,
                                        self.configuration_manager.patch_size,
                                        self.label_manager,
                                        oversample_foreground_percent=self.oversample_foreground_percent,
                                        sampling_probabilities=None, pad_sides=None)
+            print("TWOOOOOOOOOOOOOOOOOOOOO")
             dl_val = nnUNetDataLoader2D(dataset_val, self.batch_size,
                                         self.configuration_manager.patch_size,
                                         self.configuration_manager.patch_size,
                                         self.label_manager,
                                         oversample_foreground_percent=self.oversample_foreground_percent,
                                         sampling_probabilities=None, pad_sides=None)
+            print("THREEEEEEEEEEEEEEEEEEEE")
         else:
             print("UNSUITABLE DIMENSIONS")
             sys.exit()
