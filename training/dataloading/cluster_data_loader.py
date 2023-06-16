@@ -25,7 +25,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
 
         self.last_reached = False
 
-        clusters=np.load(r"C:\Users\ppysl3\OneDrive - The University of Nottingham\Postgraduate\Year 1\nnUNETAlterationTests\TCL200-8preds.npy")
+        #clusters=np.load(r"C:\Users\ppysl3\OneDrive - The University of Nottingham\Postgraduate\Year 1\nnUNETAlterationTests\TCL200-8preds.npy")
+        clusters=np.load(r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_8")
         listofzeros=[]
         listofones=[]
         listoftwos=[]
