@@ -5,6 +5,11 @@ from nnunetv2.training.dataloading import nnUNetClusterDataLoader2D
 import sys
 class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...], dim: int):
+        
+        #From NoDA's version of plain_dataloaders, adding back in case its overwritten
+        initial_patch_size=self.configuration_manager.patch_size,
+        dim=dim
+        
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
         #We only want to modify the training loader
         if dim == 2:
