@@ -6,6 +6,10 @@ from nnunetv2.training.dataloading.data_loader_2d import nnUNetDataLoader2D
 import sys
 from typing import Union, Tuple, List
 from batchgenerators.transforms.abstract_transforms import AbstractTransform
+from nnunetv2.utilities.default_n_proc_DA import get_allowed_n_proc_DA
+from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
+from nnunetv2.training.data_augmentation.custom_transforms.limited_length_multithreaded_augmenter import \
+    LimitedLenWrapper
 class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...], dim: int):
         
@@ -16,68 +20,77 @@ class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
         #We only want to modify the training loader
         if dim == 2:
-            print("ONE!!!!!!!!!!!!!!!!!!")
             dl_tr = nnUNetClusterDataLoader2D(dataset_tr, self.batch_size,
                                        initial_patch_size,
                                        self.configuration_manager.patch_size,
                                        self.label_manager,
                                        oversample_foreground_percent=self.oversample_foreground_percent,
                                        sampling_probabilities=None, pad_sides=None)
-            print("TWOOOOOOOOOOOOOOOOOOOOO")
             dl_val = nnUNetDataLoader2D(dataset_val, self.batch_size,
                                         self.configuration_manager.patch_size,
                                         self.configuration_manager.patch_size,
                                         self.label_manager,
                                         oversample_foreground_percent=self.oversample_foreground_percent,
                                         sampling_probabilities=None, pad_sides=None)
-            print("THREEEEEEEEEEEEEEEEEEEE")
         else:
             print("UNSUITABLE DIMENSIONS")
             sys.exit()
         return dl_tr, dl_val
-    def get_dataloaders(self):
-            # we use the patch size to determine whether we need 2D or 3D dataloaders. We also use it to determine whether
-            # we need to use dummy 2D augmentation (in case of 3D training) and what our initial patch size should be
-            patch_size = self.configuration_manager.patch_size
-            dim = len(patch_size)
+    def train_step(self, batch: dict) -> dict:
+        print("SAFIASFIUHIFUHAWIHIF")
+        data = batch['data']
+        target = batch['target']
 
-            # needed for deep supervision: how much do we need to downscale the segmentation targets for the different
-            # outputs?
-            deep_supervision_scales = self._get_deep_supervision_scales()
+        data = data.to(self.device, non_blocking=True)
+        if isinstance(target, list):
+            target = [i.to(self.device, non_blocking=True) for i in target]
+        else:
+            target = target.to(self.device, non_blocking=True)
 
-            rotation_for_DA, do_dummy_2d_data_aug, initial_patch_size, mirror_axes = \
-                self.configure_rotation_dummyDA_mirroring_and_inital_patch_size()
+        self.optimizer.zero_grad()
+        # Autocast is a little bitch.
+        # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
+        # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
+        # So autocast will only be active if we have a cuda device.
+        with autocast(self.device.type, enabled=True) if self.device.type == 'cuda' else dummy_context():
+            output = self.network(data)
+            # del data
+            l = self.loss(output, target)
 
-            # training pipeline
-            tr_transforms = self.get_training_transforms(
-                patch_size, rotation_for_DA, deep_supervision_scales, mirror_axes, do_dummy_2d_data_aug,
-                order_resampling_data=3, order_resampling_seg=1,
-                use_mask_for_norm=self.configuration_manager.use_mask_for_norm,
-                is_cascaded=self.is_cascaded, foreground_labels=self.label_manager.foreground_labels,
-                regions=self.label_manager.foreground_regions if self.label_manager.has_regions else None,
-                ignore_label=self.label_manager.ignore_label)
+        if self.grad_scaler is not None:
+            self.grad_scaler.scale(l).backward()
+            self.grad_scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+        else:
+            l.backward()
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            self.optimizer.step()
+        return {'loss': l.detach().cpu().numpy()}
+        print("SFHASDFIUHSFIUHASFIUSHIDFASID")
+    def run_training(self):
+        self.on_train_start()
 
-            # validation pipeline
-            val_transforms = self.get_validation_transforms(deep_supervision_scales,
-                                                            is_cascaded=self.is_cascaded,
-                                                            foreground_labels=self.label_manager.foreground_labels,
-                                                            regions=self.label_manager.foreground_regions if
-                                                            self.label_manager.has_regions else None,
-                                                            ignore_label=self.label_manager.ignore_label)
+        for epoch in range(self.current_epoch, self.num_epochs):
+            self.on_epoch_start()
 
-            dl_tr, dl_val = self.get_plain_dataloaders(initial_patch_size, dim)
+            self.on_train_epoch_start()
+            train_outputs = []
+            for batch_id in range(self.num_iterations_per_epoch):
+                print("Before")
+                train_outputs.append(self.train_step(next(self.dataloader_train)))
+                print("After")
+            self.on_train_epoch_end(train_outputs)
 
-            allowed_num_processes = get_allowed_n_proc_DA()
-            if allowed_num_processes == 0:
-                mt_gen_train = SingleThreadedAugmenter(dl_tr, tr_transforms)
-                mt_gen_val = SingleThreadedAugmenter(dl_val, val_transforms)
-            else:
-                mt_gen_train = LimitedLenWrapper(self.num_iterations_per_epoch, data_loader=dl_tr, transform=tr_transforms,
-                                                num_processes=allowed_num_processes, num_cached=6, seeds=None,
-                                                pin_memory=self.device.type == 'cuda', wait_time=0.02)
-                mt_gen_val = LimitedLenWrapper(self.num_val_iterations_per_epoch, data_loader=dl_val,
-                                            transform=val_transforms, num_processes=max(1, allowed_num_processes // 2),
-                                            num_cached=3, seeds=None, pin_memory=self.device.type == 'cuda',
-                                            wait_time=0.02)
-            return mt_gen_train, mt_gen_val
+            with torch.no_grad():
+                self.on_validation_epoch_start()
+                val_outputs = []
+                for batch_id in range(self.num_val_iterations_per_epoch):
+                    val_outputs.append(self.validation_step(next(self.dataloader_val)))
+                self.on_validation_epoch_end(val_outputs)
+
+            self.on_epoch_end()
+
+        self.on_train_end()
 
