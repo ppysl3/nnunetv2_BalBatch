@@ -14,7 +14,7 @@ We should enforce that N must be divisible by batch size
 class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
     def reset(self):
         assert self.indices is not None
-        print(self.indices)
+        #print(self.indices)
         self.current_position = self.thread_id * self.batch_size
 
         self.was_initialized = True
@@ -26,7 +26,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         self.last_reached = False
 
         #clusters=np.load(r"C:\Users\ppysl3\OneDrive - The University of Nottingham\Postgraduate\Year 1\nnUNETAlterationTests\TCL200-8preds.npy")
-        clusters=np.load(r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_8")
+        clusters=np.load(r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-8preds.npy")
+        print(clusters)
         listofzeros=[]
         listofones=[]
         listoftwos=[]
@@ -71,7 +72,11 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         actualarray.append(listofsevens)
         counters=np.zeros(8, dtype=int)
         counters=list(counters)
+        print(actualarray)
+        self.actualarray=actualarray
+        self.counters=counters
     def get_indices(self):
+        print("GET")
         # if self.infinite, this is easy
         #if self.infinite:
         #    return np.random.choice(self.indices, self.batch_size, replace=True, p=self.sampling_probabilities)
@@ -80,21 +85,30 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
 
         if self.last_reached:
             self.reset()
+            arraytot=self.actualarray
+            counters=self.counters
             raise StopIteration
 
         if not self.was_initialized:
             self.reset()
-
+            arraytot=self.actualarray
+            counters=self.counters
+            print("INIT")
+            print(arraytot)
         #Get our array from above
-        arraytot=list(actualarray)
+        #arraytot=list(self.actualarray)
         numarray=len(arraytot)
-
+        print(arraytot)
         indices = []
 
         for b in range(0, self.batch_size, numarray):
+            #print("b"+str(b))
+            #print(self.batch_size)
+            #print(numarray)
             for num, array in enumerate(arraytot):
+                #print(num)
+                #print(array)
                 if self.current_position < len(self.indices):
-                
                     counter=counters[num]
                     if counter==0:
                         numselect=counter
@@ -103,6 +117,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
                     else:
                         numselect=(counter % len(array))
                     counters[num]=counter+1
+                    #print("numsel"+str(numselect))
+                    #print(array)
                     numberchosen=array[numselect]   
                     indices.append(numberchosen)
 
@@ -110,7 +126,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
                 else:
                     self.last_reached = True
                     break
-
+        print(len(indices))
         if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
             self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
             return indices
