@@ -90,7 +90,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         indices = []
 
         for b in range(0, self.batch_size, numarray):
-            for num, array in enumerate(arraytot)
+            for num, array in enumerate(arraytot):
                 if self.current_position < len(self.indices):
                 
                     counter=counters[num]
@@ -115,5 +115,3 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         else:
             self.reset()
             raise StopIteration
-
-    @abstractmethod
