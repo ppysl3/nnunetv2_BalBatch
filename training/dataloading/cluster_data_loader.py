@@ -2,7 +2,7 @@ import numpy as np
 from nnunetv2.training.dataloading.base_data_loader import nnUNetDataLoaderBase
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
 from nnunetv2.training.dataloading.data_loader_2d import nnUNetDataLoader2D
-
+import random
 '''
 We need to edit reset such that it iniialises the cluster indicies
 We need to edit get_indicies such that it selects N indicies from N clusters.
@@ -76,9 +76,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         #if self.infinite:
         #    return np.random.choice(self.indices, self.batch_size, replace=True, p=self.sampling_probabilities)
         
-        #Get our array from above
-        arraytot=list(actualarray)
-        numarray=len(arraytot)
+        
 
         if self.last_reached:
             self.reset()
@@ -86,6 +84,10 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
 
         if not self.was_initialized:
             self.reset()
+
+        #Get our array from above
+        arraytot=list(actualarray)
+        numarray=len(arraytot)
 
         indices = []
 
