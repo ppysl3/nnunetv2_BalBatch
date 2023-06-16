@@ -72,7 +72,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         actualarray.append(listofsevens)
         counters=np.zeros(8, dtype=int)
         counters=list(counters)
-        print(actualarray)
+        #print(actualarray)
         self.actualarray=actualarray
         self.counters=counters
     def get_indices(self):
@@ -93,8 +93,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
             self.reset()
             arraytot=self.actualarray
             counters=self.counters
-            print("INIT")
-            print(arraytot)
+            #print("INIT")
+            #print(arraytot)
         #Get our array from above
         #arraytot=list(self.actualarray)
         numarray=len(arraytot)
