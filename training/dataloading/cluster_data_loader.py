@@ -13,21 +13,33 @@ We should enforce that N must be divisible by batch size
 '''
 
 class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
+    def determine_shapes(self):
+        # load one case
+        data, seg, properties = self._data.load_case(self.indices[0])
+        num_color_channels = data.shape[0]
+        data_shape = (self.batch_size, num_color_channels, *self.patch_size)
+        seg_shape = (self.batch_size, seg.shape[0], *self.patch_size)
+        print("DATATSHAPE IN DETERMINE SHAPES")
+        print(data_shape)
+        sys.exit()
+        return data_shape, seg_shape
+    
     def generate_train_batch(self):
         #print("Lets generate some indicies")
         selected_keys = self.get_indices()
         #print("Indices got")
-        #print(selected_keys)
+        print(selected_keys)
         #print(type(selected_keys))
         # preallocate memory for data and seg
-        #print("DATASHAPE")
-        #print(self.data_shape)
-        sys.exit()
+        print("DATASHAPE IN TRAIN BATCH")
+        print(self.data_shape)
+        #sys.exit()
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
         case_properties = []
 
         for j, current_key in enumerate(selected_keys):
+            print("Get here")
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
             force_fg = self.get_do_oversample(j)
@@ -98,7 +110,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
             padding = [(-min(0, bbox_lbs[i]), max(bbox_ubs[i] - shape[i], 0)) for i in range(dim)]
             data_all[j] = np.pad(data, ((0, 0), *padding), 'constant', constant_values=0)
             seg_all[j] = np.pad(seg, ((0, 0), *padding), 'constant', constant_values=-1)
-
+            print("END HERE")
+        print("TEST")
         return {'data': data_all, 'seg': seg_all, 'properties': case_properties, 'keys': selected_keys}
 
     
@@ -171,6 +184,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         self.actualarray=actualarray
         self.counters=counters
     def get_indices(self):
+        print("TYPE IN DATA LOADER")
+        print(type(self.indices))
         print("GET")
         # if self.infinite, this is easy
         #if self.infinite:
@@ -226,7 +241,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
             #print(self.indices[i])
             indices.append(self.indices[i])
         indices=np.array(indices)
-        sys.exit()
+        #sys.exit()
         if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
             self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
             return indices
