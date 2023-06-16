@@ -37,7 +37,7 @@ class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
             sys.exit()
         return dl_tr, dl_val
     def train_step(self, batch: dict) -> dict:
-        print("SAFIASFIUHIFUHAWIHIF")
+        print("Start Train Step")
         data = batch['data']
         target = batch['target']
 
@@ -68,7 +68,7 @@ class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
             self.optimizer.step()
         return {'loss': l.detach().cpu().numpy()}
-        print("SFHASDFIUHSFIUHASFIUSHIDFASID")
+        print("End Train Step")
     def run_training(self):
         self.on_train_start()
 

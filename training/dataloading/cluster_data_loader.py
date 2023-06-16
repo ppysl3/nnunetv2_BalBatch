@@ -3,6 +3,7 @@ from nnunetv2.training.dataloading.base_data_loader import nnUNetDataLoaderBase
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
 from nnunetv2.training.dataloading.data_loader_2d import nnUNetDataLoader2D
 import random
+import sys
 '''
 We need to edit reset such that it iniialises the cluster indicies
 We need to edit get_indicies such that it selects N indicies from N clusters.
@@ -13,11 +14,15 @@ We should enforce that N must be divisible by batch size
 
 class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
     def generate_train_batch(self):
-        print("Lets generate some indicies")
+        #print("Lets generate some indicies")
         selected_keys = self.get_indices()
-        print("Now that that's over")
-        print(selected_keys)
+        #print("Indices got")
+        #print(selected_keys)
+        #print(type(selected_keys))
         # preallocate memory for data and seg
+        #print("DATASHAPE")
+        #print(self.data_shape)
+        sys.exit()
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
         case_properties = []
@@ -189,8 +194,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
         #arraytot=list(self.actualarray)
         numarray=len(arraytot)
         #print(arraytot)
-        indices = []
-
+        tempindices = []
+        indices=[]
         for b in range(0, self.batch_size, numarray):
             #print("b"+str(b))
             #print(self.batch_size)
@@ -210,13 +215,18 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoader2D):
                     #print("numsel"+str(numselect))
                     #print(array)
                     numberchosen=array[numselect]   
-                    indices.append(numberchosen)
+                    tempindices.append(numberchosen)
 
                     self.current_position += 1
                 else:
                     self.last_reached = True
                     break
-        print(len(indices))
+        #print(len(tempindices))
+        for i in tempindices:
+            #print(self.indices[i])
+            indices.append(self.indices[i])
+        indices=np.array(indices)
+        sys.exit()
         if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
             self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
             return indices
