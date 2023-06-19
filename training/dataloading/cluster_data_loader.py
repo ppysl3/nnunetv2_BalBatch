@@ -179,6 +179,61 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         self.actualarray=actualarray
         self.counters=counters
     def get_indices(self):
+        if self.last_reached:
+            self.reset()
+            arraytot=self.actualarray
+            counters=self.counters
+            raise StopIteration
+        if not self.was_initialized:
+            self.reset()
+            arraytot=self.actualarray
+            counters=self.counters
+            #print("INIT")
+            #print(arraytot)
+        #Get our array from above
+        #arraytot=list(self.actualarray)
+        numarray=len(arraytot)
+        #print(arraytot)
+        tempindices = []
+        indices=[]
+        if self.batch_size % len(arraytot) != 0:
+            raise Exception ("BATCH SIZE ERROR: Batch size must be divisble by number of clusters " + str(len(arraytot)))
+        #if len(self.indices)  % self.batch_size != 0:
+        #    raise Exception("BATCH SIZE ERROR: Number of images must be divisible by batch size")
+        currentprogress=0
+        while currentprogress < self.batch_size:
+            for num, array in enumerate(arraytot):
+                if self.current_position < len(self.indices):
+                    counter=counters[num]
+                    if counter==0:
+                        numselect=counter
+                        random.shuffle(array)
+                        arraytot[num]=array
+                    else:
+                        numselect=(counter % len(array))
+                    counters[num]=counter+1
+                    numberchosen=array[numselect]   
+                    tempindices.append(numberchosen)
+                    currentprogress=currentprogress+1
+                    self.current_position += 1
+                else:
+                    print("LAST REACHED")
+                    self.last_reached = True
+                    break
+        print(len(tempindices))
+        for i in tempindices:
+            indices.append(self.indices[i])
+        indices=np.array(indices)
+        print("LENINDEX")
+        print(len(indices))
+        #sys.exit()
+        if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
+            self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
+            return indices
+        else:
+            self.reset()
+            raise StopIteration
+        '''
         print(type(self.indices))
         # if self.infinite, this is easy
         #if self.infinite:
@@ -250,7 +305,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         else:
             self.reset()
             raise StopIteration
-
+        '''
 
 if __name__ == '__main__':
     folder = '/media/fabian/data/nnUNet_preprocessed/Dataset004_Hippocampus/2d'
