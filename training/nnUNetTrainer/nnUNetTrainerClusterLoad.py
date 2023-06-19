@@ -9,14 +9,29 @@ from batchgenerators.transforms.abstract_transforms import AbstractTransform
 from nnunetv2.utilities.default_n_proc_DA import get_allowed_n_proc_DA
 from batchgenerators.dataloading.single_threaded_augmenter import SingleThreadedAugmenter
 from nnunetv2.training.data_augmentation.custom_transforms.limited_length_multithreaded_augmenter import \
-    LimitedLenWrapper
-class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
+    LimitedLenWrapper 
+        
+class nnUNetTrainerClusterLoad(nnUNetTrainer):
+    @staticmethod
+    def get_training_transforms(patch_size: Union[np.ndarray, Tuple[int]],
+                                rotation_for_DA: dict,
+                                deep_supervision_scales: Union[List, Tuple],
+                                mirror_axes: Tuple[int, ...],
+                                do_dummy_2d_data_aug: bool,
+                                order_resampling_data: int = 1,
+                                order_resampling_seg: int = 0,
+                                border_val_seg: int = -1,
+                                use_mask_for_norm: List[bool] = None,
+                                is_cascaded: bool = False,
+                                foreground_labels: Union[Tuple[int, ...], List[int]] = None,
+                                regions: List[Union[List[int], Tuple[int, ...], int]] = None,
+                                ignore_label: int = None) -> AbstractTransform:
+        return nnUNetTrainer.get_validation_transforms(deep_supervision_scales, is_cascaded, foreground_labels,
+                                                       regions, ignore_label)
+
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...], dim: int):
-        
-        #From NoDA's version of plain_dataloaders, adding back in case its overwritten
-        initial_patch_size=self.configuration_manager.patch_size,
+        initial_patch_size=self.configuration_manager.patch_size
         dim=dim
-        
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
         #We only want to modify the training loader
         if dim == 2:
@@ -36,61 +51,14 @@ class nnUNetTrainerClusterLoad(nnUNetTrainerNoDA):
             print("UNSUITABLE DIMENSIONS")
             sys.exit()
         return dl_tr, dl_val
-    def train_step(self, batch: dict) -> dict:
-        print("Start Train Step")
-        data = batch['data']
-        target = batch['target']
+            
 
-        data = data.to(self.device, non_blocking=True)
-        if isinstance(target, list):
-            target = [i.to(self.device, non_blocking=True) for i in target]
-        else:
-            target = target.to(self.device, non_blocking=True)
+    def configure_rotation_dummyDA_mirroring_and_inital_patch_size(self):
+        # we need to disable mirroring here so that no mirroring will be applied in inferene!
+        rotation_for_DA, do_dummy_2d_data_aug, initial_patch_size, mirror_axes = \
+            super().configure_rotation_dummyDA_mirroring_and_inital_patch_size()
+        mirror_axes = None
+        self.inference_allowed_mirroring_axes = None
+        return rotation_for_DA, do_dummy_2d_data_aug, initial_patch_size, mirror_axes
 
-        self.optimizer.zero_grad()
-        # Autocast is a little bitch.
-        # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
-        # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
-        # So autocast will only be active if we have a cuda device.
-        with autocast(self.device.type, enabled=True) if self.device.type == 'cuda' else dummy_context():
-            output = self.network(data)
-            # del data
-            l = self.loss(output, target)
-
-        if self.grad_scaler is not None:
-            self.grad_scaler.scale(l).backward()
-            self.grad_scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
-            self.grad_scaler.step(self.optimizer)
-            self.grad_scaler.update()
-        else:
-            l.backward()
-            torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
-            self.optimizer.step()
-        return {'loss': l.detach().cpu().numpy()}
-        print("End Train Step")
-    def run_training(self):
-        self.on_train_start()
-
-        for epoch in range(self.current_epoch, self.num_epochs):
-            self.on_epoch_start()
-
-            self.on_train_epoch_start()
-            train_outputs = []
-            for batch_id in range(self.num_iterations_per_epoch):
-                print("Before")
-                train_outputs.append(self.train_step(next(self.dataloader_train)))
-                print("After")
-            self.on_train_epoch_end(train_outputs)
-
-            with torch.no_grad():
-                self.on_validation_epoch_start()
-                val_outputs = []
-                for batch_id in range(self.num_val_iterations_per_epoch):
-                    val_outputs.append(self.validation_step(next(self.dataloader_val)))
-                self.on_validation_epoch_end(val_outputs)
-
-            self.on_epoch_end()
-
-        self.on_train_end()
 

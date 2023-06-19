@@ -1,6 +1,7 @@
 import numpy as np
-from nnunetv2.training.dataloading.mod4cluster_base_data_loader import nnUNetDataLoaderBase
+from nnunetv2.training.dataloading.base_data_loader import nnUNetDataLoaderBase
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
+from nnunetv2.training.dataloading.data_loader_2d import nnUNetDataLoader2D
 import random
 import sys
 '''
@@ -11,15 +12,18 @@ We should enforce that N must be divisible by batch size
 
 '''
 
-class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
+class OLDnnUNetClusterDataLoader2D(nnUNetDataLoader2D):
     def determine_shapes(self):
         # load one case
-        print("RunningClusterLoader")
         data, seg, properties = self._data.load_case(self.indices[0])
         num_color_channels = data.shape[0]
         data_shape = (self.batch_size, num_color_channels, *self.patch_size)
         seg_shape = (self.batch_size, seg.shape[0], *self.patch_size)
+        print("DATATSHAPE IN DETERMINE SHAPES")
+        print(data_shape)
+        sys.exit()
         return data_shape, seg_shape
+    
     def generate_train_batch(self):
         #print("Lets generate some indicies")
         selected_keys = self.get_indices()
@@ -27,20 +31,15 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         print(selected_keys)
         #print(type(selected_keys))
         # preallocate memory for data and seg
+        print("DATASHAPE IN TRAIN BATCH")
+        print(self.data_shape)
+        #sys.exit()
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
         case_properties = []
-        print("DataAll Shape")
-        print(data_all.shape)
-        print("LenKeys")
-        print(len(selected_keys))
-        sys.exit()
+
         for j, current_key in enumerate(selected_keys):
             print("Get here")
-            print(j)
-            print(current_key)
-            print(selected_keys)
-            print("")
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
             force_fg = self.get_do_oversample(j)
@@ -114,6 +113,9 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
             print("END HERE")
         print("TEST")
         return {'data': data_all, 'seg': seg_all, 'properties': case_properties, 'keys': selected_keys}
+
+    
+    
     
     
     
@@ -182,7 +184,9 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         self.actualarray=actualarray
         self.counters=counters
     def get_indices(self):
+        print("TYPE IN DATA LOADER")
         print(type(self.indices))
+        print("GET")
         # if self.infinite, this is easy
         #if self.infinite:
         #    return np.random.choice(self.indices, self.batch_size, replace=True, p=self.sampling_probabilities)
@@ -244,10 +248,3 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         else:
             self.reset()
             raise StopIteration
-
-
-if __name__ == '__main__':
-    folder = '/media/fabian/data/nnUNet_preprocessed/Dataset004_Hippocampus/2d'
-    ds = nnUNetDataset(folder, None, 1000)  # this should not load the properties!
-    dl = nnUNetDataLoader2D(ds, 366, (65, 65), (56, 40), 0.33, None, None)
-    a = next(dl)
