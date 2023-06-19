@@ -3,13 +3,10 @@ from nnunetv2.training.dataloading.mod4cluster_base_data_loader import nnUNetDat
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
 import random
 import sys
-'''
-We need to edit reset such that it iniialises the cluster indicies
-We need to edit get_indicies such that it selects N indicies from N clusters.
-We should enforce that N must be divisible by batch size
 
-
-'''
+#We need to edit reset such that it iniialises the cluster indicies
+#We need to edit get_indicies such that it selects N indicies from N clusters.
+#We should enforce that N must be divisible by batch size
 
 class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
     def determine_shapes(self):
@@ -208,12 +205,18 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         tempindices = []
         indices=[]
         for b in range(0, self.batch_size, numarray):
+            print("SETOF8")
             #print("b"+str(b))
             #print(self.batch_size)
             #print(numarray)
             for num, array in enumerate(arraytot):
+                print("CURPOS")
+                print(self.current_position)
                 #print(num)
                 #print(array)
+                if self.current_position % self.batch_size == 0 and self.current_position !=0:
+                    self.current_position += 1
+                    break
                 if self.current_position < len(self.indices):
                     counter=counters[num]
                     if counter==0:
@@ -224,19 +227,22 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                         numselect=(counter % len(array))
                     counters[num]=counter+1
                     #print("numsel"+str(numselect))
-                    #print(array)
+
                     numberchosen=array[numselect]   
                     tempindices.append(numberchosen)
 
                     self.current_position += 1
                 else:
+                    print("LAST REACHED")
                     self.last_reached = True
                     break
-        #print(len(tempindices))
+        print(len(tempindices))
         for i in tempindices:
             #print(self.indices[i])
             indices.append(self.indices[i])
         indices=np.array(indices)
+        print("LENINDEX")
+        print(len(indices))
         #sys.exit()
         if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
             self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
