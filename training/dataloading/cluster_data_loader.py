@@ -181,6 +181,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
             self.reset()
             arraytot=self.actualarray
             counters=self.counters
+        arraytot=self.actualarray
+        counters=self.counters
             #print("INIT")
             #print(arraytot)
         #Get our array from above
