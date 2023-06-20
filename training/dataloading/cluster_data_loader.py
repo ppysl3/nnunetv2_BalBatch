@@ -207,6 +207,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                     else:
                         numselect=(counter % len(array))
                     counters[num]=counter+1
+                    print(counters[0])
                     numberchosen=array[numselect]   
                     tempindices.append(numberchosen)
                     currentprogress=currentprogress+1

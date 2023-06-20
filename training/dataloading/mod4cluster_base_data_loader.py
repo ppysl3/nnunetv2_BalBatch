@@ -59,8 +59,10 @@ class nnUNetDataLoaderBase(DataLoader):
 
         data_shape = (self.batch_size, num_color_channels, *self.patch_size)
         seg_shape = (self.batch_size, seg.shape[0], *self.patch_size)
+        #This should not run as cluster_data_loader has its own determine_shapes, but good to keep here as we can indentify if the other one doesn't run.
         print("DATATSHAPE IN ModifiedBaseLoader")
         print(data_shape)
+        import sys
         sys.exit()
         return data_shape, seg_shape
 
