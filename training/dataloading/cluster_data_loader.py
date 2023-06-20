@@ -20,23 +20,16 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
     def generate_train_batch(self):
         #print("Lets generate some indicies")
         selected_keys = self.get_indices()
-        #print("Indices got")
-        print(selected_keys)
         #print(type(selected_keys))
         # preallocate memory for data and seg
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
         case_properties = []
-        print("DataAll Shape")
-        print(data_all.shape)
-        print("LenKeys")
-        print(len(selected_keys))
-        sys.exit()
+        print(selected_keys)
         for j, current_key in enumerate(selected_keys):
             print("Get here")
             print(j)
             print(current_key)
-            print(selected_keys)
             print("")
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
@@ -220,12 +213,9 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                     print("LAST REACHED")
                     self.last_reached = True
                     break
-        print(len(tempindices))
         for i in tempindices:
             indices.append(self.indices[i])
         indices=np.array(indices)
-        print("LENINDEX")
-        print(len(indices))
         #sys.exit()
         if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
             self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
