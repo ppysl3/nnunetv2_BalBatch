@@ -26,7 +26,6 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         case_properties = []
         print(selected_keys)
         for j, current_key in enumerate(selected_keys):
-            print("Get here")
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
             force_fg = self.get_do_oversample(j)
@@ -97,18 +96,12 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
             padding = [(-min(0, bbox_lbs[i]), max(bbox_ubs[i] - shape[i], 0)) for i in range(dim)]
             data_all[j] = np.pad(data, ((0, 0), *padding), 'constant', constant_values=0)
             seg_all[j] = np.pad(seg, ((0, 0), *padding), 'constant', constant_values=-1)
-            print("END HERE")
-        print("TEST")
         return {'data': data_all, 'seg': seg_all, 'properties': case_properties, 'keys': selected_keys}
     
     
     
     
     def reset(self):
-        print("WAS INITIALISED?")
-        print(self.was_initialized)
-        print("LAST REACHED?")
-        print(self.last_reached)
         assert self.indices is not None
         #print(self.indices)
         self.current_position = self.thread_id * self.batch_size
@@ -193,12 +186,14 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         tempindices = []
         indices=[]
         if self.batch_size % len(arraytot) != 0:
-            raise Exception ("BATCH SIZE ERROR: Batch size must be divisble by number of clusters " + str(len(arraytot)))
+            raise Exception ("BATCH SIZE ERROR: Batch size must be divisble by number of clusters, number of clusters is " + str(len(arraytot)))
         if len(self.indices)  % self.batch_size != 0:
             raise Exception("BATCH SIZE ERROR: Number of images must be divisible by batch size")
         currentprogress=0
         while currentprogress < self.batch_size:
             print(counters[0])
+            if self.last_reached==True:
+                break
             for num, array in enumerate(arraytot):
                 if self.current_position < len(self.indices):
                     counter=counters[num]
@@ -217,9 +212,6 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                 else:
                     print("LAST REACHED")
                     self.last_reached = True
-                    print(self.current_position)
-                    print(self.indices)
-                    sys.exit()
                     break
         #periodically update self.counters
         self.counters=counters
@@ -230,83 +222,13 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         #sys.exit()
         if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
             self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
+            if self.current_position == len(self.indices):
+                print("RESETTING: New batch should be incoming")
+                self.reset()
             return indices
         else:
             self.reset()
             raise StopIteration
-        '''
-        print(type(self.indices))
-        # if self.infinite, this is easy
-        #if self.infinite:
-        #    return np.random.choice(self.indices, self.batch_size, replace=True, p=self.sampling_probabilities)
-        
-        
-
-        if self.last_reached:
-            self.reset()
-            arraytot=self.actualarray
-            counters=self.counters
-            raise StopIteration
-
-        if not self.was_initialized:
-            self.reset()
-            arraytot=self.actualarray
-            counters=self.counters
-            #print("INIT")
-            #print(arraytot)
-        #Get our array from above
-        #arraytot=list(self.actualarray)
-        numarray=len(arraytot)
-        #print(arraytot)
-        tempindices = []
-        indices=[]
-        for b in range(0, self.batch_size, numarray):
-            print("SETOF8")
-            #print("b"+str(b))
-            #print(self.batch_size)
-            #print(numarray)
-            for num, array in enumerate(arraytot):
-                print("CURPOS")
-                print(self.current_position)
-                #print(num)
-                #print(array)
-                if self.current_position % self.batch_size == 0 and self.current_position !=0:
-                    self.current_position += 1
-                    break
-                if self.current_position < len(self.indices):
-                    counter=counters[num]
-                    if counter==0:
-                        numselect=counter
-                        random.shuffle(array)
-                        arraytot[num]=array
-                    else:
-                        numselect=(counter % len(array))
-                    counters[num]=counter+1
-                    #print("numsel"+str(numselect))
-
-                    numberchosen=array[numselect]   
-                    tempindices.append(numberchosen)
-
-                    self.current_position += 1
-                else:
-                    print("LAST REACHED")
-                    self.last_reached = True
-                    break
-        print(len(tempindices))
-        for i in tempindices:
-            #print(self.indices[i])
-            indices.append(self.indices[i])
-        indices=np.array(indices)
-        print("LENINDEX")
-        print(len(indices))
-        #sys.exit()
-        if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
-            self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
-            return indices
-        else:
-            self.reset()
-            raise StopIteration
-        '''
 
 if __name__ == '__main__':
     folder = '/media/fabian/data/nnUNet_preprocessed/Dataset004_Hippocampus/2d'
