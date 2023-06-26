@@ -142,6 +142,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                 listofsixes.append(idx)
             elif value==7:
                 listofsevens.append(idx)
+        listoffives=[0,1,2,3,4,5,6,7,8,9]
+        listoftwos=[10,11]
         #random.shuffle(listofzeros)
         #random.shuffle(listofones)
         #random.shuffle(listoftwos)
@@ -199,11 +201,13 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                     counter=counters[num]
                     if counter==0:
                         numselect=counter
-                        #print("ShuffleDueToZeroCounter")
-                        #random.shuffle(array)
+                        print("ShuffleDueToZeroCounter")
+                        random.shuffle(array)
                         arraytot[num]=array
                     else:
                         numselect=(counter % len(array))
+                    if numselect+1==len(array):
+                        print("EQUAL "+str(num))
                     counters[num]=counter+1
                     numberchosen=array[numselect]   
                     tempindices.append(numberchosen)
