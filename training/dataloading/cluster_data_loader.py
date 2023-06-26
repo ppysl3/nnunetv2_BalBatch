@@ -18,9 +18,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         seg_shape = (self.batch_size, seg.shape[0], *self.patch_size)
         return data_shape, seg_shape
     def generate_train_batch(self):
-        #print("Lets generate some indicies")
+        print("GENERATETRAINBATCH")
         selected_keys = self.get_indices()
-        #print(type(selected_keys))
         # preallocate memory for data and seg
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
@@ -28,9 +27,6 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         print(selected_keys)
         for j, current_key in enumerate(selected_keys):
             print("Get here")
-            print(j)
-            print(current_key)
-            print("")
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
             force_fg = self.get_do_oversample(j)
@@ -109,6 +105,10 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
     
     
     def reset(self):
+        print("WAS INITIALISED?")
+        print(self.was_initialized)
+        print("LAST REACHED?")
+        print(self.last_reached)
         assert self.indices is not None
         #print(self.indices)
         self.current_position = self.thread_id * self.batch_size
@@ -157,6 +157,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         random.shuffle(listoffives)
         random.shuffle(listofsixes)
         random.shuffle(listofsevens)
+        print("!!SHUFFLE!!")
         actualarray=[]
         actualarray.append(listofzeros)
         actualarray.append(listofones)
@@ -193,21 +194,22 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         indices=[]
         if self.batch_size % len(arraytot) != 0:
             raise Exception ("BATCH SIZE ERROR: Batch size must be divisble by number of clusters " + str(len(arraytot)))
-        #if len(self.indices)  % self.batch_size != 0:
-        #    raise Exception("BATCH SIZE ERROR: Number of images must be divisible by batch size")
+        if len(self.indices)  % self.batch_size != 0:
+            raise Exception("BATCH SIZE ERROR: Number of images must be divisible by batch size")
         currentprogress=0
         while currentprogress < self.batch_size:
+            print(counters[0])
             for num, array in enumerate(arraytot):
                 if self.current_position < len(self.indices):
                     counter=counters[num]
                     if counter==0:
                         numselect=counter
+                        print("ShuffleDueToZeroCounter")
                         random.shuffle(array)
                         arraytot[num]=array
                     else:
                         numselect=(counter % len(array))
                     counters[num]=counter+1
-                    print(counters[0])
                     numberchosen=array[numselect]   
                     tempindices.append(numberchosen)
                     currentprogress=currentprogress+1
@@ -215,7 +217,13 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                 else:
                     print("LAST REACHED")
                     self.last_reached = True
+                    print(self.current_position)
+                    print(self.indices)
+                    sys.exit()
                     break
+        #periodically update self.counters
+        self.counters=counters
+        self.actualarray=arraytot
         for i in tempindices:
             indices.append(self.indices[i])
         indices=np.array(indices)
