@@ -18,7 +18,7 @@ class nnUNetTrainerClusterLoad(nnUNetTrainer):
                  device: torch.device = torch.device('cuda')):
         """used for debugging plans etc"""
         super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device)
-        self.num_epochs = 3
+        self.num_epochs = 1000
     @staticmethod
     def get_training_transforms(patch_size: Union[np.ndarray, Tuple[int]],
                                 rotation_for_DA: dict,

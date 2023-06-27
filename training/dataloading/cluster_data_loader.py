@@ -3,7 +3,7 @@ from nnunetv2.training.dataloading.mod4cluster_base_data_loader import nnUNetDat
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
 import random
 import sys
-
+import pickle
 #We need to edit reset such that it iniialises the cluster indicies
 #We need to edit get_indicies such that it selects N indicies from N clusters.
 #We should enforce that N must be divisible by batch size
@@ -142,8 +142,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                 listofsixes.append(idx)
             elif value==7:
                 listofsevens.append(idx)
-        listoffives=[0,1,2,3,4,5,6,7,8,9]
-        listoftwos=[10,11]
+        #listoffives=[0,1,2,3,4,5,6,7,8,9]
+        #listoftwos=[10,11]
         random.shuffle(listofzeros)
         random.shuffle(listofones)
         random.shuffle(listoftwos)
@@ -164,6 +164,9 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         actualarray.append(listofsevens)
         counters=np.zeros(8, dtype=int)
         counters=list(counters)
+        OutPickle="/home/ppysl3/ClusterLoadnnUNET/PickleArrays/Full2000MyArray.pickle"
+        with open(OutPickle, 'wb') as SaveLoc:
+            pickle.dump(actualarray, SaveLoc)
         #print(actualarray)
         self.actualarray=actualarray
         self.counters=counters
