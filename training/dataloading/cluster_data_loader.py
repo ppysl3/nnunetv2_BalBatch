@@ -144,15 +144,15 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                 listofsevens.append(idx)
         listoffives=[0,1,2,3,4,5,6,7,8,9]
         listoftwos=[10,11]
-        #random.shuffle(listofzeros)
-        #random.shuffle(listofones)
-        #random.shuffle(listoftwos)
-        #random.shuffle(listofthrees)
-        #random.shuffle(listoffours)
-        #random.shuffle(listoffives)
-        #random.shuffle(listofsixes)
-        #random.shuffle(listofsevens)
-        #print("!!SHUFFLE!!")
+        random.shuffle(listofzeros)
+        random.shuffle(listofones)
+        random.shuffle(listoftwos)
+        random.shuffle(listofthrees)
+        random.shuffle(listoffours)
+        random.shuffle(listoffives)
+        random.shuffle(listofsixes)
+        random.shuffle(listofsevens)
+        print("!!SHUFFLE!!")
         actualarray=[]
         actualarray.append(listofzeros)
         actualarray.append(listofones)
@@ -200,14 +200,14 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                 if self.current_position < len(self.indices):
                     counter=counters[num]
                     if counter==0:
+                        #This is a redundant bit of code which ensures that newly initiated arrays are shuffled before any selection.
+                        #Also sets the first numselect, and the modulo operator will go crazy at 0 otherwise.
                         numselect=counter
                         print("ShuffleDueToZeroCounter")
                         random.shuffle(array)
                         arraytot[num]=array
                     else:
                         numselect=(counter % len(array))
-                    if numselect+1==len(array):
-                        print("EQUAL "+str(num))
                     counters[num]=counter+1
                     numberchosen=array[numselect]   
                     tempindices.append(numberchosen)
@@ -217,6 +217,11 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
                     print("LAST REACHED")
                     self.last_reached = True
                     break
+                if numselect+1==len(array):
+                        #This is here to shuffle when getting to the end of an array.
+                        print("Shuffle after next batch for "+str(num))
+                        random.shuffle(array)
+                        arraytot[num]=array
         #periodically update self.counters
         self.counters=counters
         self.actualarray=arraytot
