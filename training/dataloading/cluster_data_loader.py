@@ -114,6 +114,21 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
 
         self.last_reached = False
 
+        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-8preds.npy"
+        if PathToCluster[-4:] != ".npy":
+            clusters=torch.load(PathToCluster ,map_location=torch.device('cpu'))
+            clusters=clusters["im2cluster"][0]
+            clusters=np.array(clusters)
+        else:
+            clusters=np.load(PathToCluster)
+
+        MaxVal=np.max(clusters)
+        arrays=np.empty((MaxVal+1, 0)).tolist() #Initialise List
+        for idx, values in enumerate(clusters):
+            arrays[values].append(idx)
+        Counters=np.zeros(MaxCounters, dtype=int)
+        Counters=list(Counters)
+        '''
         #clusters=np.load(r"C:\Users\ppysl3\OneDrive - The University of Nottingham\Postgraduate\Year 1\nnUNETAlterationTests\TCL200-8preds.npy")
         clusters=np.load(r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-8preds.npy")
         #print(clusters)
@@ -168,6 +183,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         with open(OutPickle, 'wb') as SaveLoc:
             pickle.dump(actualarray, SaveLoc)
         #print(actualarray)
+        '''
         self.actualarray=actualarray
         self.counters=counters
     def get_indices(self):
