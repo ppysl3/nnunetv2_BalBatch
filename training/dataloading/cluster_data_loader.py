@@ -4,6 +4,7 @@ from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
 import random
 import sys
 import pickle
+import torch
 #We need to edit reset such that it iniialises the cluster indicies
 #We need to edit get_indicies such that it selects N indicies from N clusters.
 #We should enforce that N must be divisible by batch size
@@ -113,8 +114,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         #    self.rs.shuffle(self.indices)
 
         self.last_reached = False
-
-        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-8preds.npy"
+        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_5"
+        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-8preds.npy"
         if PathToCluster[-4:] != ".npy":
             clusters=torch.load(PathToCluster ,map_location=torch.device('cpu'))
             clusters=clusters["im2cluster"][0]
@@ -126,66 +127,11 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         arrays=np.empty((MaxVal+1, 0)).tolist() #Initialise List
         for idx, values in enumerate(clusters):
             arrays[values].append(idx)
-        Counters=np.zeros(MaxCounters, dtype=int)
+        Counters=np.zeros(MaxVal+1, dtype=int)
         Counters=list(Counters)
-        '''
-        #clusters=np.load(r"C:\Users\ppysl3\OneDrive - The University of Nottingham\Postgraduate\Year 1\nnUNETAlterationTests\TCL200-8preds.npy")
-        clusters=np.load(r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-8preds.npy")
-        #print(clusters)
-        listofzeros=[]
-        listofones=[]
-        listoftwos=[]
-        listofthrees=[]
-        listoffours=[]
-        listoffives=[]
-        listofsixes=[]
-        listofsevens=[]
-        for idx, value in enumerate(clusters):
-            if value==0:
-                listofzeros.append(idx)
-            elif value==1:
-                listofones.append(idx)
-            if value==2:
-                listoftwos.append(idx)
-            elif value==3:
-                listofthrees.append(idx)
-            if value==4:
-                listoffours.append(idx)
-            elif value==5:
-                listoffives.append(idx)
-            elif value==6:
-                listofsixes.append(idx)
-            elif value==7:
-                listofsevens.append(idx)
-        #listoffives=[0,1,2,3,4,5,6,7,8,9]
-        #listoftwos=[10,11]
-        random.shuffle(listofzeros)
-        random.shuffle(listofones)
-        random.shuffle(listoftwos)
-        random.shuffle(listofthrees)
-        random.shuffle(listoffours)
-        random.shuffle(listoffives)
-        random.shuffle(listofsixes)
-        random.shuffle(listofsevens)
-        print("!!SHUFFLE!!")
-        actualarray=[]
-        actualarray.append(listofzeros)
-        actualarray.append(listofones)
-        actualarray.append(listoftwos)
-        actualarray.append(listofthrees)
-        actualarray.append(listoffours)
-        actualarray.append(listoffives)
-        actualarray.append(listofsixes)
-        actualarray.append(listofsevens)
-        counters=np.zeros(8, dtype=int)
-        counters=list(counters)
-        OutPickle="/home/ppysl3/ClusterLoadnnUNET/PickleArrays/Full2000MyArray.pickle"
-        with open(OutPickle, 'wb') as SaveLoc:
-            pickle.dump(actualarray, SaveLoc)
-        #print(actualarray)
-        '''
-        self.actualarray=actualarray
-        self.counters=counters
+        
+        self.actualarray=arrays
+        self.counters=Counters
     def get_indices(self):
         if self.last_reached:
             self.reset()
