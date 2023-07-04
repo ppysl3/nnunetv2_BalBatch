@@ -5,6 +5,7 @@ import random
 import sys
 import pickle
 import torch
+import os
 #We need to edit reset such that it iniialises the cluster indicies
 #We need to edit get_indicies such that it selects N indicies from N clusters.
 #We should enforce that N must be divisible by batch size
@@ -104,7 +105,15 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
     
     def reset(self):
         assert self.indices is not None
+        AllISIC2017Images=r"/db/ppysl3/ContrastiveLearningDatasets/ISIC-2017_Training_Data/ISIC-2017_Training_Data"
+        allims=os.listdir(AllISIC2017Images)
+        allims.sort()
+        for idx, a in enumerate(allims):
+            allims[idx]=a[:-4]
+        #print("PRINTING INDICES")
         #print(self.indices)
+        #print(allims)
+
         self.current_position = self.thread_id * self.batch_size
 
         self.was_initialized = True
@@ -114,8 +123,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         #    self.rs.shuffle(self.indices)
 
         self.last_reached = False
-        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_5"
-        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-8preds.npy"
+        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_5"
+        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-5preds.npy"
         if PathToCluster[-4:] != ".npy":
             clusters=torch.load(PathToCluster ,map_location=torch.device('cpu'))
             clusters=clusters["im2cluster"][0]
@@ -127,11 +136,38 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         arrays=np.empty((MaxVal+1, 0)).tolist() #Initialise List
         for idx, values in enumerate(clusters):
             arrays[values].append(idx)
+        
+        myims=self.indices
+        myims.sort()
+        
+        totalindices=[]
+        for p in myims:
+            loc=allims.index(p)
+            totalindices.append(loc)
+         
+        assignments=[]    
+        for im in totalindices:
+            for idx, arr in enumerate(arrays):
+                if im in arr:
+                    assignments.append(idx)
+        #print("")
+        #print(clusters)
+        #print("")
+        #print(assignments)
+        #print(len(clusters)-len(assignments))
+        #print("")
+        clusters=assignments
+        MaxVal=np.max(clusters)
+        arrays=np.empty((MaxVal+1, 0)).tolist() #Initialise List
+        for idx, values in enumerate(clusters):
+            arrays[values].append(idx)
         Counters=np.zeros(MaxVal+1, dtype=int)
         Counters=list(Counters)
-        
+        #print(arrays)
+        #print(Counters)
         self.actualarray=arrays
         self.counters=Counters
+        #sys.exit()
     def get_indices(self):
         if self.last_reached:
             self.reset()
@@ -164,6 +200,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
             for num, array in enumerate(arraytot):
                 if self.current_position < len(self.indices):
                     counter=counters[num]
+                    #print("COUNTER "+str(counter))
+                    #print("ArrayLen "+str(len(array)))
                     if counter==0:
                         #This is a redundant bit of code which ensures that newly initiated arrays are shuffled before any selection.
                         #Also sets the first numselect, and the modulo operator will go crazy at 0 otherwise.
