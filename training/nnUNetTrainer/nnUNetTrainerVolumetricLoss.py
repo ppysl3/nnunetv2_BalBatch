@@ -10,6 +10,7 @@ import torch
 from torch import autocast, nn
 from typing import Callable
 
+
 class VolumetricLoss(nn.Module):
     def __init__(self, apply_nonlin: Callable = None, batch_dice: bool = False, do_bg: bool = True, smooth: float = 1.,
                  ddp: bool = True, clip_tp: float = None):
@@ -26,7 +27,7 @@ class VolumetricLoss(nn.Module):
 
     def forward(self, x, y, loss_mask=None):
         shp_x = x.shape
-
+        print("Shape x "+str(shp_x))
         if self.batch_dice:
             axes = [0] + list(range(2, len(shp_x)))
         else:
@@ -34,11 +35,14 @@ class VolumetricLoss(nn.Module):
 
         if self.apply_nonlin is not None:
             x = self.apply_nonlin(x)
-        targetcopy=y.cpu().detach().numpy()
-        targetsum=np.sum(targetcopy)    
+        #targetcopy=y.cpu().detach().numpy()
+        #targetsum=np.sum(targetcopy)
+        #print("yshape " +str(y.shape))
+        #targetsum=torch.sum(y)   
+        #print("Targetsum "+str(targetsum)) 
         #print(targetcopy)
         tp, fp, fn, tn = get_tp_fp_fn_tn(x, y, axes, loss_mask, False)
-        #print("Total Pixels  " +str(tp+fp+fn+tn))
+        print("Total Pixels  " +str(tp+fp+fn+tn))
         if self.ddp and self.batch_dice:
             tp = AllGatherGrad.apply(tp).sum(0)
             fp = AllGatherGrad.apply(fp).sum(0)
@@ -48,18 +52,25 @@ class VolumetricLoss(nn.Module):
             tp = torch.clip(tp, min=self.clip_tp , max=None)
 
         numyes=(tp+fp)
-        numyes=np.array(numyes.detach().cpu().numpy())
-        numyes=np.array(numyes[1])
-
+        print("Allyes "+str(numyes))
+        hypotheticaltarget=(tp+fn)
+        print("ShouldBeEqualToTarget "+str(hypotheticaltarget))
+        #numyes=np.array(numyes.detach().cpu().numpy())
+        #numyes=np.array(numyes[1])
+        #numyes=numyes[1]
+        #print("Num yes " +str(numyes))
         #print("TargetSum" +str(targetsum))
         #print("Num Predicted Pixels" +str(numyes))
+        
+        Diff=hypotheticaltarget-numyes
+        PotentialLoss=50*((Diff/(tp+fp+fn+tn)))
 
-        Diff=targetsum-numyes
-        checksize=np.prod(x.shape)
-        PotentialLoss=100*((Diff)/(checksize))**2 #This is squared
-        #print("Potential Loss" +str(PotentialLoss))
-
-        print("")
+        #Diff=targetsum-numyes
+        #checksize=np.prod(x.shape)
+        #PotentialLoss=100*((Diff)/(checksize))**2 #This is squared
+        print("Potential Loss" +str(PotentialLoss))
+        print("Hopefully One Column " +str(PotentialLoss[:,0]))
+        PotentialLoss=torch.square(PotentialLoss[:,0]).mean()
         #import sys
         #sys.exit()
         return PotentialLoss
@@ -91,7 +102,6 @@ class DC_and_CE_loss(nn.Module):
         self.ce = RobustCrossEntropyLoss(**ce_kwargs)
         self.dc = dice_class(apply_nonlin=softmax_helper_dim1, **soft_dice_kwargs)
         self.vl=VolumetricLoss(apply_nonlin=softmax_helper_dim1, **soft_dice_kwargs)
-
     def forward(self, net_output: torch.Tensor, target: torch.Tensor):
         """
         target must be b, c, x, y(, z) with c=1
@@ -140,7 +150,7 @@ class DC_and_CE_loss(nn.Module):
         #print("DICE" +str(dc))
         print("CE WEIGHT "+str(self.weight_ce))
         print("DICE WEIGHT" +str(self.weight_dice))
-        result = self.weight_ce * ce_loss + self.weight_dice * dc_loss
+        result = self.weight_ce * ce_loss + self.weight_dice * dc_loss + 1*vl_loss
         return result
 
 
