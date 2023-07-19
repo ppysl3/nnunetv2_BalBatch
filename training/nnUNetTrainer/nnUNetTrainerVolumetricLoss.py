@@ -63,7 +63,7 @@ class VolumetricLoss(nn.Module):
         #print("Num Predicted Pixels" +str(numyes))
         
         Diff=hypotheticaltarget-numyes
-        PotentialLoss=50*((Diff/(tp+fp+fn+tn)))
+        PotentialLoss=((Diff/(tp+fp+fn+tn)))
 
         #Diff=targetsum-numyes
         #checksize=np.prod(x.shape)
