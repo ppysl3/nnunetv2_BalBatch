@@ -35,10 +35,10 @@ class VolumetricLoss(nn.Module):
         if self.apply_nonlin is not None:
             x = self.apply_nonlin(x)
         targetcopy=y.cpu().detach().numpy()
-        print("TargetSum" +str(np.sum(targetcopy)))
+        targetsum=np.sum(targetcopy)    
         #print(targetcopy)
         tp, fp, fn, tn = get_tp_fp_fn_tn(x, y, axes, loss_mask, False)
-        print("Total Pix " +str(tp+fp+fn+tn))
+        #print("Total Pixels  " +str(tp+fp+fn+tn))
         if self.ddp and self.batch_dice:
             tp = AllGatherGrad.apply(tp).sum(0)
             fp = AllGatherGrad.apply(fp).sum(0)
@@ -47,13 +47,22 @@ class VolumetricLoss(nn.Module):
         if self.clip_tp is not None:
             tp = torch.clip(tp, min=self.clip_tp , max=None)
 
-        numyesses=(tp+fp)
-        #
-        print("USING CUSTOM LOSS" +str(numyesses))
+        numyes=(tp+fp)
+        numyes=np.array(numyes.detach().cpu().numpy())
+        numyes=np.array(numyes[1])
+
+        #print("TargetSum" +str(targetsum))
+        #print("Num Predicted Pixels" +str(numyes))
+
+        Diff=targetsum-numyes
+        checksize=np.prod(x.shape)
+        PotentialLoss=100*((Diff)/(checksize))**2 #This is squared
+        #print("Potential Loss" +str(PotentialLoss))
+
         print("")
         #import sys
         #sys.exit()
-        return numyesses
+        return PotentialLoss
 
 class DC_and_CE_loss(nn.Module):
     def __init__(self, soft_dice_kwargs, ce_kwargs, weight_ce=1, weight_dice=1, ignore_label=None,
@@ -109,6 +118,10 @@ class DC_and_CE_loss(nn.Module):
             if self.weight_ce != 0 and (self.ignore_label is None or num_fg > 0) else 0
         vl_loss = self.vl(net_output, target_dice, loss_mask=mask) \
             if self.weight_dice != 0 else 0
+        print("DICE LOSS "+str(dc_loss))
+        print("CE LOSS "+str(ce_loss))
+        print("VOL LOSS"+ str(vl_loss))
+        print("")
         #print("Loss Outside" +str(vl_loss))
         outputnp=net_output.cpu().detach().numpy()
         targetnp=target.cpu().detach().numpy()
@@ -125,6 +138,8 @@ class DC_and_CE_loss(nn.Module):
         #print(np.sum(targetnp[:,0,:,:]))
         dc=(dc_loss.cpu().detach().numpy())
         #print("DICE" +str(dc))
+        print("CE WEIGHT "+str(self.weight_ce))
+        print("DICE WEIGHT" +str(self.weight_dice))
         result = self.weight_ce * ce_loss + self.weight_dice * dc_loss
         return result
 
