@@ -64,13 +64,14 @@ class VolumetricLoss(nn.Module):
         
         Diff=hypotheticaltarget-numyes
         PotentialLoss=((Diff/(tp+fp+fn+tn)))
-
+        #TotalPixels=(tp+fp+fn+tn)
+        #PotentialLoss=Diff
         #Diff=targetsum-numyes
         #checksize=np.prod(x.shape)
         #PotentialLoss=100*((Diff)/(checksize))**2 #This is squared
         print("Potential Loss" +str(PotentialLoss))
         print("Hopefully One Column " +str(PotentialLoss[:,0]))
-        PotentialLoss=torch.square(PotentialLoss[:,0]).mean()
+        PotentialLoss=(torch.square(PotentialLoss[:,0])).mean()
         #import sys
         #sys.exit()
         return PotentialLoss
