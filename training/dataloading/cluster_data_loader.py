@@ -1,6 +1,6 @@
 import numpy as np
 from nnunetv2.training.dataloading.mod4cluster_base_data_loader import nnUNetDataLoaderBase
-from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
+from nnunetv2.training.dataloading.nnunet_dataset_cluster import nnUNetDataset
 import random
 import sys
 import pickle
@@ -127,7 +127,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/SecondSelectionPCLNumpyFiles/clusters_5"
         #print(PathToCluster)
         #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-4preds.npy"
-        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles_8"
+        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_8"
         if PathToCluster[-4:] != ".npy":
             clusters=torch.load(PathToCluster ,map_location=torch.device('cpu'))
             clusters=clusters["im2cluster"][0]

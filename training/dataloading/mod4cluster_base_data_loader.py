@@ -3,7 +3,7 @@ from typing import Union, Tuple
 from batchgenerators.dataloading.data_loader import DataLoader
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
-from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
+from nnunetv2.training.dataloading.nnunet_dataset_cluster import nnUNetDataset
 from nnunetv2.utilities.label_handling.label_handling import LabelManager
 
 

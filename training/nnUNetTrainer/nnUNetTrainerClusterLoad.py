@@ -11,7 +11,8 @@ from batchgenerators.dataloading.single_threaded_augmenter import SingleThreaded
 from nnunetv2.training.data_augmentation.custom_transforms.limited_length_multithreaded_augmenter import \
     LimitedLenWrapper 
 import torch
-        
+from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset #For the Validation Loaders
+from nnunetv2.training.dataloading.nnunet_dataset_cluster import nnUNetDataset as nnUNetDatasetCluster #For the Training Loaders      
 class nnUNetTrainerClusterLoad(nnUNetTrainer):
     #Init here used to limit number of epochs to 3 for testing
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
@@ -82,10 +83,25 @@ class nnUNetTrainerClusterLoad(nnUNetTrainer):
                                            num_cached=3, seeds=None, pin_memory=self.device.type == 'cuda',
                                            wait_time=0.02)
         return mt_gen_train, mt_gen_val
+    def get_tr_and_val_datasets(self):
+        # create dataset split
+        tr_keys, val_keys = self.do_split()
+
+        # load the datasets for training and validation. Note that we always draw random samples so we really don't
+        # care about distributing training cases across GPUs.
+        dataset_tr = nnUNetDatasetCluster(self.preprocessed_dataset_folder, tr_keys,
+                                   folder_with_segs_from_previous_stage=self.folder_with_segs_from_previous_stage,
+                                   num_images_properties_loading_threshold=0)
+        dataset_val = nnUNetDataset(self.preprocessed_dataset_folder, val_keys,
+                                    folder_with_segs_from_previous_stage=self.folder_with_segs_from_previous_stage,
+                                    num_images_properties_loading_threshold=0)
+        return dataset_tr, dataset_val
+    
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...], dim: int):
         initial_patch_size=self.configuration_manager.patch_size
         dim=dim
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
+        print(dataset_tr)
         #We only want to modify the training loader
         if dim == 2:
             dl_tr = nnUNetClusterDataLoader2D(dataset_tr, self.batch_size,
