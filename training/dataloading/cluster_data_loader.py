@@ -123,8 +123,11 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         #    self.rs.shuffle(self.indices)
 
         self.last_reached = False
-        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_4"
-        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-5preds.npy"
+        #NOTE Below is the path to the NEW 200 set clusters
+        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/SecondSelectionPCLNumpyFiles/clusters_5"
+        #print(PathToCluster)
+        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-4preds.npy"
+        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_8"
         if PathToCluster[-4:] != ".npy":
             clusters=torch.load(PathToCluster ,map_location=torch.device('cpu'))
             clusters=clusters["im2cluster"][0]
