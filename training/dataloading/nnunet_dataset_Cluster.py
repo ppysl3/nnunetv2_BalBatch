@@ -39,7 +39,10 @@ class nnUNetDataset(object):
         if case_identifiers is None:
             case_identifiers = get_case_identifiers(folder)
         case_identifiers.sort()
-
+        print("HELLO, I GOT HERE")
+        import sys
+        sys.exit()
+        raise Exception("NA")
         self.dataset = {}
         for c in case_identifiers:
             self.dataset[c] = {}
