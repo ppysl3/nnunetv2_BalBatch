@@ -167,12 +167,12 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         myims=self.indices
         myims.sort()
         
-        totalindices=[]
+        totalindices=[] #This converts my list of files in nnunetraw, to their corresponding positions in the whole dataset.
         for p in myims:
             loc=allims.index(p)
             totalindices.append(loc)
          
-        assignments=[]    
+        assignments=[]  # This takes the indices corresponding to positions, and cross references them to the arrays   
         for im in totalindices:
             for idx, arr in enumerate(arrays):
                 if im in arr:
@@ -190,6 +190,16 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
             arrays[values].append(idx)
         Counters=np.zeros(MaxVal+1, dtype=int)
         Counters=list(Counters)
+
+        #This is to check that the fixed cluster scenario is being adhered to.
+        #If so, the clusters should be even.
+        #If they should be, and they're not, it means that the wrong clusters have been loaded.
+        if len(arrays[0])==len(arrays[1])==len(arrays[MaxVal]):
+            print("Array Check Pass")
+        else:
+            raise Exception("Incorrect Array Loaded for Fixed Sampling Scenario")
+
+
         #print(arrays)
         #print(Counters)
         self.actualarray=arrays
