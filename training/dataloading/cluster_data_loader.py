@@ -104,9 +104,29 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
     
     
     def reset(self):
-        p=self._get_preproc_folder()
-        p=os.path.dirname(p)
-        print("Here is the thing: ", p)
+
+        #Code to get cluster file from preproc.
+        preprocfold=self._get_preproc_folder()
+        preprocfold=os.path.dirname(preprocfold)
+        FilesInPreproc=os.listdir(preprocfold)
+        print("Here is the thing: ", preprocfold)
+        FoundClusterFlag=0
+        for p in FilesInPreproc:
+            if (p[:8])=="clusters":
+                print("PCL")
+                FoundFile=p
+                FoundClusterFlag+=1
+            if (p[-9:])=="preds.npy":
+                print("TCL")
+                FoundFile=p
+                FoundClusterFlag+=1
+        if FoundClusterFlag==0:
+            raise Exception("No Cluster File Found in PreProc Folder")
+        if FoundClusterFlag != 1:
+            raise Exception("Too Many Cluster Files in PreProc Folder")
+        print("Found Cluster File: ", FoundFile)
+        PathToCluster=os.path.join(preprocfold, FoundFile)
+
         assert self.indices is not None
         AllISIC2017Images=r"/db/ppysl3/ContrastiveLearningDatasets/ISIC-2017_Training_Data/ISIC-2017_Training_Data"
         allims=os.listdir(AllISIC2017Images)
@@ -126,11 +146,12 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         #    self.rs.shuffle(self.indices)
 
         self.last_reached = False
-        #NOTE Below is the path to the NEW 200 set clusters
+        ##NOTE Path to cluster now specified above rather than in code. 
+        #Below is the path to the NEW 200 set clusters
         #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/SecondSelectionPCLNumpyFiles/clusters_5"
         #print(PathToCluster)
         #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-4preds.npy"
-        PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_8"
+        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_8"
         if PathToCluster[-4:] != ".npy":
             clusters=torch.load(PathToCluster ,map_location=torch.device('cpu'))
             clusters=clusters["im2cluster"][0]
