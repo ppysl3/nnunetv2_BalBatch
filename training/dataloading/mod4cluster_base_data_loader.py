@@ -22,6 +22,7 @@ class nnUNetDataLoaderBase(DataLoader):
         assert isinstance(data, nnUNetDataset), 'nnUNetDataLoaderBase only supports dictionaries as data'
         self.indices = list(data.keys())
         print("ModdedBaseLoaderRunning")
+        self.PreProcFolder=(data.PreProcFolder)
         self.oversample_foreground_percent = oversample_foreground_percent
         self.final_patch_size = final_patch_size
         self.patch_size = patch_size
@@ -41,7 +42,10 @@ class nnUNetDataLoaderBase(DataLoader):
         self.has_ignore = label_manager.has_ignore_label
         self.get_do_oversample = self._oversample_last_XX_percent if not probabilistic_oversampling \
             else self._probabilistic_oversampling
-
+    def _get_preproc_folder(self):
+        print("GetPreProc")
+        print(self.PreProcFolder)
+        return self.PreProcFolder
     def _oversample_last_XX_percent(self, sample_idx: int) -> bool:
         """
         determines whether sample sample_idx in a minibatch needs to be guaranteed foreground

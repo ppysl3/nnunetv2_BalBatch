@@ -39,7 +39,9 @@ class nnUNetDataset(object):
         if case_identifiers is None:
             case_identifiers = get_case_identifiers(folder)
         case_identifiers.sort()
-
+        print("UsingClusterDataset")
+        self.PreProcFolder=folder
+        print(self.PreProcFolder)
         self.dataset = {}
         for c in case_identifiers:
             self.dataset[c] = {}

@@ -104,6 +104,9 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
     
     
     def reset(self):
+        p=self._get_preproc_folder()
+        p=os.path.dirname(p)
+        print("Here is the thing: ", p)
         assert self.indices is not None
         AllISIC2017Images=r"/db/ppysl3/ContrastiveLearningDatasets/ISIC-2017_Training_Data/ISIC-2017_Training_Data"
         allims=os.listdir(AllISIC2017Images)
