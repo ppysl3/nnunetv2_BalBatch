@@ -8,13 +8,13 @@ Steps to run:<br>
 <br>
 Your cluster file should be as following:<br>
 <br>
-For your entire imagesTr, your cluster file should be a 1 by N vertical array of cluster assignments, saved as a numpy file.
-For example, if you had 5 images, and 2 cluster classes, your array could look like:
-
-0
-0
-1
-1
-0
-
-The file should be saved out with the ending "preds.npy", for example, "EXAMPLEpreds.npy".
+For your entire imagesTr, your cluster file should be a 1 by N vertical array of cluster assignments, saved as a numpy file.<br>
+For example, if you had 5 images, and 2 cluster classes, your array could look like:<br>
+<br>
+0<br>
+0<br>
+1<br>
+1<br>
+0<br>
+<br>
+The file should be saved out with the ending "preds.npy", for example, "EXAMPLEpreds.npy".<br>
