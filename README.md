@@ -1,2 +1,9 @@
 # nnunetv2
-Code is as standard on first commit, except to a change on line 197 of run_training that comments out the post-train validation, which runs but then crashes when the distributed training ends, resulting in slurm never finishing.
+Modified for Cluster Loading.
+
+Steps to run:
+1: Point line 131 in cluster_data_loader to the full imagesTr (I.E All images in the full dataset) 
+2: Insert your cluster file inside the DatasetXXX_NAME folder in nnUNET_Preprocessed
+3: Run using the nnUNetTrainerClusterLoad trainer.
+
+Your cluster file should be as following.
