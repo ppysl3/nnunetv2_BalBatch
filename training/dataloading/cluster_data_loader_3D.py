@@ -1,6 +1,6 @@
 import numpy as np
 from nnunetv2.training.dataloading.mod4cluster_base_data_loader import nnUNetDataLoaderBase
-from nnunetv2.training.dataloading.nnunet_dataset_cluster import nnUNetDataset
+from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
 import random
 import sys
 import pickle
@@ -10,7 +10,7 @@ import os
 #We need to edit get_indicies such that it selects N indicies from N clusters.
 #We should enforce that N must be divisible by batch size
 
-class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
+class nnUNetClusterDataLoader3D(nnUNetDataLoaderBase):
     def determine_shapes(self):
         # load one case
         print("RunningClusterLoader")
@@ -19,64 +19,26 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         data_shape = (self.batch_size, num_color_channels, *self.patch_size)
         seg_shape = (self.batch_size, seg.shape[0], *self.patch_size)
         return data_shape, seg_shape
+    
     def generate_train_batch(self):
-        print("GENERATETRAINBATCH")
         selected_keys = self.get_indices()
         # preallocate memory for data and seg
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
         case_properties = []
         print(selected_keys)
-        for j, current_key in enumerate(selected_keys):
+        for j, i in enumerate(selected_keys): # i is current key
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
             force_fg = self.get_do_oversample(j)
-            data, seg, properties = self._data.load_case(current_key)
 
-            # select a class/region first, then a slice where this class is present, then crop to that area
-            if not force_fg:
-                if self.has_ignore:
-                    selected_class_or_region = self.annotated_classes_key
-                else:
-                    selected_class_or_region = None
-            else:
-                # filter out all classes that are not present here
-                eligible_classes_or_regions = [i for i in properties['class_locations'].keys() if len(properties['class_locations'][i]) > 0]
+            data, seg, properties = self._data.load_case(i)
 
-                # if we have annotated_classes_key locations and other classes are present, remove the annotated_classes_key from the list
-                # strange formulation needed to circumvent
-                # ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
-                tmp = [i == self.annotated_classes_key if isinstance(i, tuple) else False for i in eligible_classes_or_regions]
-                if any(tmp):
-                    if len(eligible_classes_or_regions) > 1:
-                        eligible_classes_or_regions.pop(np.where(tmp)[0][0])
-
-                selected_class_or_region = eligible_classes_or_regions[np.random.choice(len(eligible_classes_or_regions))] if \
-                    len(eligible_classes_or_regions) > 0 else None
-            if selected_class_or_region is not None:
-                selected_slice = np.random.choice(properties['class_locations'][selected_class_or_region][:, 1])
-            else:
-                selected_slice = np.random.choice(len(data[0]))
-
-            data = data[:, selected_slice]
-            seg = seg[:, selected_slice]
-
-            # the line of death lol
-            # this needs to be a separate variable because we could otherwise permanently overwrite
-            # properties['class_locations']
-            # selected_class_or_region is:
-            # - None if we do not have an ignore label and force_fg is False OR if force_fg is True but there is no foreground in the image
-            # - A tuple of all (non-ignore) labels if there is an ignore label and force_fg is False
-            # - a class or region if force_fg is True
-            class_locations = {
-                selected_class_or_region: properties['class_locations'][selected_class_or_region][properties['class_locations'][selected_class_or_region][:, 1] == selected_slice][:, (0, 2, 3)]
-            } if (selected_class_or_region is not None) else None
-
-            # print(properties)
+            # If we are doing the cascade then the segmentation from the previous stage will already have been loaded by
+            # self._data.load_case(i) (see nnUNetDataset.load_case)
             shape = data.shape[1:]
             dim = len(shape)
-            bbox_lbs, bbox_ubs = self.get_bbox(shape, force_fg if selected_class_or_region is not None else None,
-                                               class_locations, overwrite_class=selected_class_or_region)
+            bbox_lbs, bbox_ubs = self.get_bbox(shape, force_fg, properties['class_locations'])
 
             # whoever wrote this knew what he was doing (hint: it was me). We first crop the data to the region of the
             # bbox that actually lies within the data. This will result in a smaller array which is then faster to pad.
@@ -98,11 +60,9 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
             padding = [(-min(0, bbox_lbs[i]), max(bbox_ubs[i] - shape[i], 0)) for i in range(dim)]
             data_all[j] = np.pad(data, ((0, 0), *padding), 'constant', constant_values=0)
             seg_all[j] = np.pad(seg, ((0, 0), *padding), 'constant', constant_values=-1)
+
         return {'data': data_all, 'seg': seg_all, 'properties': case_properties, 'keys': selected_keys}
-    
-    
-    
-    
+
     def reset(self):
 
         #Code to get cluster file from preproc.
@@ -128,12 +88,11 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         PathToCluster=os.path.join(preprocfold, FoundFile)
 
         assert self.indices is not None
-        AllISIC2017Images=r"/db/ppysl3/ISIC_2018/imagesTr" #This is what you need to edit to point to your full dataset
-        print("NOTE - Full Set Directory: "+str(AllISIC2017Images))
-        allims=os.listdir(AllISIC2017Images)
+        AllPotentialTrainingImages=r"/db/ppysl3/3DBowelMedSamSets/training/godownone/godowntwo/imagesTr"
+        allims=os.listdir(AllPotentialTrainingImages)
         allims.sort()
         for idx, a in enumerate(allims):
-            allims[idx]=a[:-4]
+            allims[idx]=a[:-7]
         #print("PRINTING INDICES")
         #print(self.indices)
         #print(allims)
@@ -169,6 +128,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         myims.sort()
         
         totalindices=[] #This converts my list of files in nnunetraw, to their corresponding positions in the whole dataset.
+        #print(allims)
         for p in myims:
             loc=allims.index(p)
             totalindices.append(loc)
@@ -230,7 +190,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         tempindices = []
         indices=[]
         if self.batch_size % len(arraytot) != 0:
-            raise Exception ("BATCH SIZE ERROR: Batch size must be divisble by number of clusters, number of clusters is " + str(len(arraytot)))
+            raise Exception ("BATCH SIZE ERROR: Batch size "+str(self.batch_size)+ " must be divisble by number of clusters, number of clusters is " + str(len(arraytot)))
         if len(self.indices)  % self.batch_size != 0:
             raise Exception("BATCH SIZE ERROR: Number of images must be divisible by batch size")
         currentprogress=0
@@ -283,8 +243,9 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
             self.reset()
             raise StopIteration
 
+
 if __name__ == '__main__':
-    folder = '/media/fabian/data/nnUNet_preprocessed/Dataset004_Hippocampus/2d'
-    ds = nnUNetDataset(folder, None, 1000)  # this should not load the properties!
-    dl = nnUNetDataLoader2D(ds, 366, (65, 65), (56, 40), 0.33, None, None)
+    folder = '/media/fabian/data/nnUNet_preprocessed/Dataset002_Heart/3d_fullres'
+    ds = nnUNetDataset(folder, 0)  # this should not load the properties!
+    dl = nnUNetDataLoader3D(ds, 5, (16, 16, 16), (16, 16, 16), 0.33, None, None)
     a = next(dl)
