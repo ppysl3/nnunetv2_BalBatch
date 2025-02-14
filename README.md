@@ -1,6 +1,10 @@
 # nnunetv2
 Modified for Cluster Loading.<br>
 <br>
+Installation <br>
+First, install the original nnUNETV2 normally using python 3.9 in a conda environment <br>
+Ensure, using your own test set, that nnUNETV2 is working correctly <br>
+Then, replace the nnUNET package files with the ones contained in this repo. You'll find at the top level, the folders are named identically. <br>
 Steps to run:<br>
 1: Under training/dataloading, point line 131 in cluster_data_loader to the full imagesTr (I.E All images in the full dataset) <br>
 2: Insert your cluster file inside the DatasetXXX_NAME folder in nnUNET_Preprocessed<br>
