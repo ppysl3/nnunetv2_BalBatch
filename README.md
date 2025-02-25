@@ -3,6 +3,7 @@ Modified for Cluster Loading.<br>
 <br>
 Installation <br>
 First, install the original nnUNETV2 normally using python 3.9 in a conda environment <br>
+You will require torch version 2.0.1+cu117 <br>
 Ensure, using your own test set, that nnUNETV2 is working correctly <br>
 Then, replace the nnUNET package files with the ones contained in this repo. You'll find at the top level, the folders are named identically. <br>
 Steps to run:<br>
