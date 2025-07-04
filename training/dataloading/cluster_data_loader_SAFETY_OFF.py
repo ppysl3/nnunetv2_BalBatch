@@ -1,0 +1,290 @@
+import numpy as np
+from nnunetv2.training.dataloading.mod4cluster_base_data_loader import nnUNetDataLoaderBase
+from nnunetv2.training.dataloading.nnunet_dataset_cluster import nnUNetDataset
+import random
+import sys
+import pickle
+import torch
+import os
+#We need to edit reset such that it iniialises the cluster indicies
+#We need to edit get_indicies such that it selects N indicies from N clusters.
+#We should enforce that N must be divisible by batch size
+
+class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
+    def determine_shapes(self):
+        # load one case
+        print("RunningClusterLoader_SAFETY_OFF")
+        data, seg, properties = self._data.load_case(self.indices[0])
+        num_color_channels = data.shape[0]
+        data_shape = (self.batch_size, num_color_channels, *self.patch_size)
+        seg_shape = (self.batch_size, seg.shape[0], *self.patch_size)
+        return data_shape, seg_shape
+    def generate_train_batch(self):
+        print("GENERATETRAINBATCH")
+        selected_keys = self.get_indices()
+        # preallocate memory for data and seg
+        data_all = np.zeros(self.data_shape, dtype=np.float32)
+        seg_all = np.zeros(self.seg_shape, dtype=np.int16)
+        case_properties = []
+        print(selected_keys)
+        for j, current_key in enumerate(selected_keys):
+            # oversampling foreground will improve stability of model training, especially if many patches are empty
+            # (Lung for example)
+            force_fg = self.get_do_oversample(j)
+            data, seg, properties = self._data.load_case(current_key)
+
+            # select a class/region first, then a slice where this class is present, then crop to that area
+            if not force_fg:
+                if self.has_ignore:
+                    selected_class_or_region = self.annotated_classes_key
+                else:
+                    selected_class_or_region = None
+            else:
+                # filter out all classes that are not present here
+                eligible_classes_or_regions = [i for i in properties['class_locations'].keys() if len(properties['class_locations'][i]) > 0]
+
+                # if we have annotated_classes_key locations and other classes are present, remove the annotated_classes_key from the list
+                # strange formulation needed to circumvent
+                # ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+                tmp = [i == self.annotated_classes_key if isinstance(i, tuple) else False for i in eligible_classes_or_regions]
+                if any(tmp):
+                    if len(eligible_classes_or_regions) > 1:
+                        eligible_classes_or_regions.pop(np.where(tmp)[0][0])
+
+                selected_class_or_region = eligible_classes_or_regions[np.random.choice(len(eligible_classes_or_regions))] if \
+                    len(eligible_classes_or_regions) > 0 else None
+            if selected_class_or_region is not None:
+                selected_slice = np.random.choice(properties['class_locations'][selected_class_or_region][:, 1])
+            else:
+                selected_slice = np.random.choice(len(data[0]))
+
+            data = data[:, selected_slice]
+            seg = seg[:, selected_slice]
+
+            # the line of death lol
+            # this needs to be a separate variable because we could otherwise permanently overwrite
+            # properties['class_locations']
+            # selected_class_or_region is:
+            # - None if we do not have an ignore label and force_fg is False OR if force_fg is True but there is no foreground in the image
+            # - A tuple of all (non-ignore) labels if there is an ignore label and force_fg is False
+            # - a class or region if force_fg is True
+            class_locations = {
+                selected_class_or_region: properties['class_locations'][selected_class_or_region][properties['class_locations'][selected_class_or_region][:, 1] == selected_slice][:, (0, 2, 3)]
+            } if (selected_class_or_region is not None) else None
+
+            # print(properties)
+            shape = data.shape[1:]
+            dim = len(shape)
+            bbox_lbs, bbox_ubs = self.get_bbox(shape, force_fg if selected_class_or_region is not None else None,
+                                               class_locations, overwrite_class=selected_class_or_region)
+
+            # whoever wrote this knew what he was doing (hint: it was me). We first crop the data to the region of the
+            # bbox that actually lies within the data. This will result in a smaller array which is then faster to pad.
+            # valid_bbox is just the coord that lied within the data cube. It will be padded to match the patch size
+            # later
+            valid_bbox_lbs = [max(0, bbox_lbs[i]) for i in range(dim)]
+            valid_bbox_ubs = [min(shape[i], bbox_ubs[i]) for i in range(dim)]
+
+            # At this point you might ask yourself why we would treat seg differently from seg_from_previous_stage.
+            # Why not just concatenate them here and forget about the if statements? Well that's because segneeds to
+            # be padded with -1 constant whereas seg_from_previous_stage needs to be padded with 0s (we could also
+            # remove label -1 in the data augmentation but this way it is less error prone)
+            this_slice = tuple([slice(0, data.shape[0])] + [slice(i, j) for i, j in zip(valid_bbox_lbs, valid_bbox_ubs)])
+            data = data[this_slice]
+
+            this_slice = tuple([slice(0, seg.shape[0])] + [slice(i, j) for i, j in zip(valid_bbox_lbs, valid_bbox_ubs)])
+            seg = seg[this_slice]
+
+            padding = [(-min(0, bbox_lbs[i]), max(bbox_ubs[i] - shape[i], 0)) for i in range(dim)]
+            data_all[j] = np.pad(data, ((0, 0), *padding), 'constant', constant_values=0)
+            seg_all[j] = np.pad(seg, ((0, 0), *padding), 'constant', constant_values=-1)
+        return {'data': data_all, 'seg': seg_all, 'properties': case_properties, 'keys': selected_keys}
+    
+    
+    
+    
+    def reset(self):
+
+        #Code to get cluster file from preproc.
+        preprocfold=self._get_preproc_folder()
+        preprocfold=os.path.dirname(preprocfold)
+        FilesInPreproc=os.listdir(preprocfold)
+        print("Here is the thing: ", preprocfold)
+        FoundClusterFlag=0
+        for p in FilesInPreproc:
+            if (p[:8])=="clusters":
+                print("PCL")
+                FoundFile=p
+                FoundClusterFlag+=1
+            if (p[-9:])=="preds.npy":
+                print("TCL")
+                FoundFile=p
+                FoundClusterFlag+=1
+        if FoundClusterFlag==0:
+            raise Exception("No Cluster File Found in PreProc Folder")
+        if FoundClusterFlag != 1:
+            raise Exception("Too Many Cluster Files in PreProc Folder")
+        print("Found Cluster File: ", FoundFile)
+        PathToCluster=os.path.join(preprocfold, FoundFile)
+
+        assert self.indices is not None
+        AllISIC2017Images=r"/db/ppysl3/ISIC_2018/imagesTr" #This is what you need to edit to point to your full dataset
+        print("NOTE - Full Set Directory: "+str(AllISIC2017Images))
+        allims=os.listdir(AllISIC2017Images)
+        allims.sort()
+        for idx, a in enumerate(allims):
+            allims[idx]=a[:-4]
+        #print("PRINTING INDICES")
+        #print(self.indices)
+        #print(allims)
+
+        self.current_position = self.thread_id * self.batch_size
+
+        self.was_initialized = True
+
+        # no need to shuffle if we are returning infinite random samples
+        #if not self.infinite and self.shuffle:
+        #    self.rs.shuffle(self.indices)
+
+        self.last_reached = False
+        ##NOTE Path to cluster now specified above rather than in code. 
+        #Below is the path to the NEW 200 set clusters
+        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/SecondSelectionPCLNumpyFiles/clusters_5"
+        #print(PathToCluster)
+        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/TCLModels/NumpyFiles/200-4preds.npy"
+        #PathToCluster=r"/home/ppysl3/TotalAutomationHam3ClusterExperiment3MainLesions/PCLNumpyFiles/clusters_8"
+        if PathToCluster[-4:] != ".npy":
+            clusters=torch.load(PathToCluster ,map_location=torch.device('cpu'))
+            clusters=clusters["im2cluster"][0]
+            clusters=np.array(clusters)
+        else:
+            clusters=np.load(PathToCluster)
+
+        MaxVal=np.max(clusters)
+        arrays=np.empty((MaxVal+1, 0)).tolist() #Initialise List
+        for idx, values in enumerate(clusters):
+            arrays[values].append(idx)
+        
+        myims=self.indices
+        myims.sort()
+        
+        totalindices=[] #This converts my list of files in nnunetraw, to their corresponding positions in the whole dataset.
+        for p in myims:
+            loc=allims.index(p)
+            totalindices.append(loc)
+         
+        assignments=[]  # This takes the indices corresponding to positions, and cross references them to the arrays   
+        for im in totalindices:
+            for idx, arr in enumerate(arrays):
+                if im in arr:
+                    assignments.append(idx)
+        #print("")
+        #print(clusters)
+        #print("")
+        #print(assignments)
+        #print(len(clusters)-len(assignments))
+        #print("")
+        clusters=assignments
+        MaxVal=np.max(clusters)
+        arrays=np.empty((MaxVal+1, 0)).tolist() #Initialise List
+        for idx, values in enumerate(clusters):
+            arrays[values].append(idx)
+        Counters=np.zeros(MaxVal+1, dtype=int)
+        Counters=list(Counters)
+
+        #This is to check that the fixed cluster scenario is being adhered to.
+        #If so, the clusters should be even.
+        #If they should be, and they're not, it means that the wrong clusters have been loaded.
+        #print(len(arrays[0]))
+        #print(len(arrays[1]))
+        #print(len(arrays[MaxVal]))
+        #if len(arrays[0])==len(arrays[1])==len(arrays[MaxVal]):
+        #    print("Array Check Pass")
+        #else:
+        #    raise Exception("Incorrect Array Loaded for Fixed Sampling Scenario")
+
+
+        #print(arrays)
+        #print(Counters)
+        self.actualarray=arrays
+        self.counters=Counters
+        #sys.exit()
+    def get_indices(self):
+        if self.last_reached:
+            self.reset()
+            arraytot=self.actualarray
+            counters=self.counters
+            raise StopIteration
+        if not self.was_initialized:
+            self.reset()
+            arraytot=self.actualarray
+            counters=self.counters
+        arraytot=self.actualarray
+        counters=self.counters
+            #print("INIT")
+            #print(arraytot)
+        #Get our array from above
+        #arraytot=list(self.actualarray)
+        numarray=len(arraytot)
+        #print(arraytot)
+        tempindices = []
+        indices=[]
+        if self.batch_size % len(arraytot) != 0:
+            raise Exception ("BATCH SIZE ERROR: Batch size must be divisble by number of clusters, number of clusters is " + str(len(arraytot)))
+        #if len(self.indices)  % self.batch_size != 0:
+        #    raise Exception("BATCH SIZE ERROR: Number of images must be divisible by batch size")
+        currentprogress=0
+        while currentprogress < self.batch_size:
+            print(counters[0])
+            if self.last_reached==True:
+                break
+            for num, array in enumerate(arraytot):
+                if self.current_position < len(self.indices):
+                    counter=counters[num]
+                    #print("COUNTER "+str(counter))
+                    #print("ArrayLen "+str(len(array)))
+                    if counter==0:
+                        #This is a redundant bit of code which ensures that newly initiated arrays are shuffled before any selection.
+                        #Also sets the first numselect, and the modulo operator will go crazy at 0 otherwise.
+                        numselect=counter
+                        print("ShuffleDueToZeroCounter")
+                        random.shuffle(array)
+                        arraytot[num]=array
+                    else:
+                        numselect=(counter % len(array))
+                    counters[num]=counter+1
+                    numberchosen=array[numselect]   
+                    tempindices.append(numberchosen)
+                    currentprogress=currentprogress+1
+                    self.current_position += 1
+                else:
+                    print("LAST REACHED")
+                    self.last_reached = True
+                    break
+                if numselect+1==len(array):
+                        #This is here to shuffle when getting to the end of an array.
+                        print("Shuffle after next batch for "+str(num))
+                        random.shuffle(array)
+                        arraytot[num]=array
+        #periodically update self.counters
+        self.counters=counters
+        self.actualarray=arraytot
+        for i in tempindices:
+            indices.append(self.indices[i])
+        indices=np.array(indices)
+        #sys.exit()
+        if len(indices) > 0 and ((not self.last_reached) or self.return_incomplete):
+            self.current_position += (self.number_of_threads_in_multithreaded - 1) * self.batch_size
+            if self.current_position == len(self.indices):
+                print("RESETTING: New batch should be incoming")
+                self.reset()
+            return indices
+        else:
+            self.reset()
+            raise StopIteration
+
+if __name__ == '__main__':
+    folder = '/media/fabian/data/nnUNet_preprocessed/Dataset004_Hippocampus/2d'
+    ds = nnUNetDataset(folder, None, 1000)  # this should not load the properties!
+    dl = nnUNetDataLoader2D(ds, 366, (65, 65), (56, 40), 0.33, None, None)
+    a = next(dl)
