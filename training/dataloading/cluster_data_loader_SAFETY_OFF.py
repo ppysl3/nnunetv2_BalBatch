@@ -128,7 +128,7 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         PathToCluster=os.path.join(preprocfold, FoundFile)
 
         assert self.indices is not None
-        AllISIC2017Images=r"/db/ppysl3/ISIC_2018/imagesTr" #This is what you need to edit to point to your full dataset
+        AllISIC2017Images=r"/data/ppysl3/ISIC_2018/imagesTr" #This is what you need to edit to point to your full dataset
         print("NOTE - Full Set Directory: "+str(AllISIC2017Images))
         allims=os.listdir(AllISIC2017Images)
         allims.sort()

@@ -6,6 +6,9 @@ import sys
 import pickle
 import torch
 import os
+from nnunetv2.paths import nnUNet_raw #Get RAW folder
+import gzip
+from pathlib import Path
 #We need to edit reset such that it iniialises the cluster indicies
 #We need to edit get_indicies such that it selects N indicies from N clusters.
 #We should enforce that N must be divisible by batch size
@@ -13,21 +16,37 @@ import os
 class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
     def determine_shapes(self):
         # load one case
-        print("RunningClusterLoader")
+        print("RunningClusterLoader_SAFETY_OFF")
         data, seg, properties = self._data.load_case(self.indices[0])
         num_color_channels = data.shape[0]
         data_shape = (self.batch_size, num_color_channels, *self.patch_size)
         seg_shape = (self.batch_size, seg.shape[0], *self.patch_size)
         return data_shape, seg_shape
     def generate_train_batch(self):
+        #We'll get the the raw folder using the preproc path
+        preprocfold=self._get_preproc_folder()
+        preprocfold=os.path.dirname(preprocfold)
+        RawFold=preprocfold.replace("nnUNet_preprocessed", "nnUNet_raw")
+        #print("RawFold", RawFold)
+        entropytr=os.path.join(RawFold, "EntropyTr/")
+        #print(entropytr)
+        #print(self.dataset_directory) #Trying to get the full path, including the dataset number, but its hard
+        #dataset_json_path = dataset.get("dataset_json", None)
         print("GENERATETRAINBATCH")
         selected_keys = self.get_indices()
         # preallocate memory for data and seg
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
+        Entropy_all = np.zeros(self.seg_shape, dtype=np.float32)
         case_properties = []
-        print(selected_keys)
+        
         for j, current_key in enumerate(selected_keys):
+            #print(current_key)
+            CurrEntropy=os.path.join(entropytr,current_key+".npy.gz")
+            print(CurrEntropy)
+            infile=gzip.GzipFile(CurrEntropy, "r")
+            EntropyNumpy =  np.load(infile)
+            
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
             force_fg = self.get_do_oversample(j)
@@ -60,7 +79,11 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
 
             data = data[:, selected_slice]
             seg = seg[:, selected_slice]
-
+            print(seg.shape)
+            print(data.shape)
+            EntropyNumpy=np.expand_dims(EntropyNumpy, 0)
+            print(EntropyNumpy.shape)
+            
             # the line of death lol
             # this needs to be a separate variable because we could otherwise permanently overwrite
             # properties['class_locations']
@@ -95,10 +118,21 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
             this_slice = tuple([slice(0, seg.shape[0])] + [slice(i, j) for i, j in zip(valid_bbox_lbs, valid_bbox_ubs)])
             seg = seg[this_slice]
 
+            this_slice = tuple([slice(0, EntropyNumpy.shape[0])] + [slice(i, j) for i, j in zip(valid_bbox_lbs, valid_bbox_ubs)])
+            EntropyNumpy = EntropyNumpy[this_slice]
+
+            print(seg.shape)
+            print(data.shape)
+            print(EntropyNumpy.shape)
             padding = [(-min(0, bbox_lbs[i]), max(bbox_ubs[i] - shape[i], 0)) for i in range(dim)]
             data_all[j] = np.pad(data, ((0, 0), *padding), 'constant', constant_values=0)
             seg_all[j] = np.pad(seg, ((0, 0), *padding), 'constant', constant_values=-1)
-        return {'data': data_all, 'seg': seg_all, 'properties': case_properties, 'keys': selected_keys}
+            Entropy_all[j] = np.pad(EntropyNumpy, ((0, 0), *padding), 'constant', constant_values=0)
+            print(seg_all.shape)
+            print(data_all.shape)
+            print(Entropy_all.shape)
+            #raise Exception("ExceptHere")
+        return {'data': data_all, 'seg': seg_all, 'properties': case_properties, 'keys': selected_keys, 'entropy':Entropy_all}
     
     
     
@@ -195,13 +229,13 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         #This is to check that the fixed cluster scenario is being adhered to.
         #If so, the clusters should be even.
         #If they should be, and they're not, it means that the wrong clusters have been loaded.
-        print(len(arrays[0]))
-        print(len(arrays[1]))
-        print(len(arrays[MaxVal]))
-        if len(arrays[0])==len(arrays[1])==len(arrays[MaxVal]):
-            print("Array Check Pass")
-        else:
-            raise Exception("Incorrect Array Loaded for Fixed Sampling Scenario")
+        #print(len(arrays[0]))
+        #print(len(arrays[1]))
+        #print(len(arrays[MaxVal]))
+        #if len(arrays[0])==len(arrays[1])==len(arrays[MaxVal]):
+        #    print("Array Check Pass")
+        #else:
+        #    raise Exception("Incorrect Array Loaded for Fixed Sampling Scenario")
 
 
         #print(arrays)
@@ -231,8 +265,8 @@ class nnUNetClusterDataLoader2D(nnUNetDataLoaderBase):
         indices=[]
         if self.batch_size % len(arraytot) != 0:
             raise Exception ("BATCH SIZE ERROR: Batch size must be divisble by number of clusters, number of clusters is " + str(len(arraytot)))
-        if len(self.indices)  % self.batch_size != 0:
-            raise Exception("BATCH SIZE ERROR: Number of images must be divisible by batch size")
+        #if len(self.indices)  % self.batch_size != 0:
+        #    raise Exception("BATCH SIZE ERROR: Number of images must be divisible by batch size")
         currentprogress=0
         while currentprogress < self.batch_size:
             print(counters[0])

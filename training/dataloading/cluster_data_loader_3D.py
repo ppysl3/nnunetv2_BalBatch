@@ -88,7 +88,7 @@ class nnUNetClusterDataLoader3D(nnUNetDataLoaderBase):
         PathToCluster=os.path.join(preprocfold, FoundFile)
 
         assert self.indices is not None
-        AllPotentialTrainingImages=r"/db/ppysl3/3DBowelMedSamSets/training/godownone/godowntwo/imagesTr"
+        AllPotentialTrainingImages=r"/data/ppysl3/3DBowelMedSamSets/training/godownone/godowntwo/imagesTr"
         allims=os.listdir(AllPotentialTrainingImages)
         allims.sort()
         for idx, a in enumerate(allims):
